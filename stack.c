@@ -7,11 +7,13 @@ pop(cmd_stk_t stk) {
     if (!stk || !stk->head)
         return NULL;
     node_t poppedNode = stk->head;
-    command_t poppedCmd = poppedNode->cmd;
     stk->head = poppedNode->next;
+    command_t poppedCmd = poppedNode->cmd;
     free(poppedNode);
     if (empty(stk))
         stk->tail = NULL;
+    else
+        stk->head->prev = NULL;
     return poppedCmd;
 }
 
@@ -39,11 +41,11 @@ getFirst(cmd_stk_t stk) {
 void
 push(cmd_stk_t stk, command_t cmd) {
     if (stk) {
-        node_t newNode = (node_t) checked_malloc(sizeof(struct node));
-        newNode->next = stk->head;
-        newNode->cmd = cmd;
+        node_t newNode = create_node(cmd, stk->head, NULL);
         if (empty(stk))
             stk->tail = newNode;
+        else
+            stk->head->prev = newNode;
         stk->head = newNode;
     }
 }
@@ -54,9 +56,7 @@ push_back(cmd_stk_t stk, command_t cmd) {
         if (empty(stk)) 
             push(stk, cmd);
         else {
-            node_t newNode = (node_t) checked_malloc(sizeof(struct node));
-            newNode->next = NULL;
-            newNode->cmd = cmd;
+            node_t newNode = create_node(cmd, NULL, stk->tail);
             stk->tail->next = newNode;
             stk->tail = newNode;
         }
@@ -69,4 +69,13 @@ create_stack() {
    newStack->head = NULL;
    newStack->tail = NULL;
    return newStack;
+}
+
+node_t
+create_node(command_t cmd, node_t next, node_t prev) {
+    node_t newNode = (node_t) checked_malloc(sizeof(struct node));
+    newNode->next = next;
+    newNode->prev = prev;
+    newNode->cmd = cmd;
+    return newNode;
 }
