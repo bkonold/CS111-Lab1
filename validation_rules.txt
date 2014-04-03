@@ -1,0 +1,41 @@
+Rules for special tokens
+------------------------
+
+"||", "&&", "|"
+---------------
+1. cannot be followed by ||, &&, |, >, <, EOF, ')', '\n\n', ';'
+    i. in other words, you're "expecting" to see either a word or an open paren
+
+
+"<"
+--------------
+1. cannot be followed by ANYTHING but a word. 
+    i. including newlines 
+2. the above word cannot be followed by > or '('
+
+
+">"
+--------------
+1. cannot be followed by ANYTHING but a word. 
+    i. including newlines 
+2. the above word cannot be followed by >, <, |, or '('
+
+
+";"
+--------------
+1. cannot be followed by ||, &&, |, >, <, ';'
+
+
+"("
+--------------
+1. cannot be followed by ||, &&, |, >, <, EOF, ')', ';'
+
+
+")"
+----------
+1. cannot be followed by '('
+
+
+General Rules
+-------------
+1. A command cannot begin with anything but a word or "("

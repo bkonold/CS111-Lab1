@@ -1,9 +1,9 @@
 // UCLA CS 111 Lab 1 command interface
 
 #include <stdbool.h>
+#include "stack.h"
 
-typedef struct command *command_t;
-typedef struct command_stream *command_stream_t;
+typedef cmd_stk_t command_stream_t;
 
 /* Create a command stream from GETBYTE and ARG.  A reader of
    the command stream will invoke GETBYTE (ARG) to get the next byte.
