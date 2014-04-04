@@ -1,4 +1,6 @@
 #include "command-internals.h"
+#ifndef STACK_H
+#define STACK_H
 
 typedef struct command *command_t;
 
@@ -32,3 +34,5 @@ void push(cmd_stk_t stk, command_t cmd);
 void push_back(cmd_stk_t, command_t cmd);
 
 int empty(cmd_stk_t stk);
+
+#endif
