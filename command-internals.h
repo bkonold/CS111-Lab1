@@ -1,3 +1,6 @@
+#ifndef COMMAND_INTERNALS_H
+#define COMMAND_INTERNALS_H
+
 // UCLA CS 111 Lab 1 command internals
 
 enum command_type
@@ -34,3 +37,5 @@ struct command
     struct command *subshell_command;
   } u;
 };
+
+#endif
