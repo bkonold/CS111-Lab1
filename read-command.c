@@ -7,10 +7,20 @@
 #include "stack.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 // 
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
+enum operator_type {
+    OR,
+    AND,
+    PIPE,
+    SEQUENCE,
+    INDIRECT,
+    OUTDIRECT,
+    NONE,
+};
 
 // **************** TODO CHANGE MALLOC TO CHECKED_MALLOC ***************
 
@@ -20,6 +30,15 @@ const void* OPEN_PAREN_COMMAND = NULL;
 static int
 get_next_byte (void *stream) {
     return getc (stream);
+}
+
+/**
+* print error message and exit
+*/
+void
+error_and_quit(char* message, int lineNum) {
+    printf("Error at %d: %s\n", lineNum, message);
+    exit(1);
 }
 
 /**
@@ -37,6 +56,7 @@ replace_multiple_newlines(char* str) {
                 int j;
                 // replace 2nd newline, and trailing whitespace, with delim
                 for (j = i+1; str[j] == '\n' || str[j] == ' ' || str[j] == '\t'; j++) {
+
                     str[j] = COMPLETE_CMD_DELIM;
                 }
                 i = j-1;
@@ -245,17 +265,235 @@ int
 get_next_nonwhitespace_char(char* str, int* index) {
     int c;
     do {
-        c = str[(*index)++];
+        c = get_next_nonbacktick_char(str, index);
     } while (c == ' ' || c == '\t');
     return c;
 }
 
+
+/**
+* returns true if c is alphanumeric or any of the following: ! % + , - . / : @ ^ _
+*/
+bool
+is_valid_word_char(int c) {
+    if (isalnum(c) || c == '!' || c == '%' || c == '+' || c == ',' || c == '-' 
+        || c == '.'  || c == '/' || c == ':' || c == '@' || c == '^' || c == '_') {
+        return true;
+    }
+    return false;
+}
+
+
 /**
 * validate the input for valid POSIX shell syntax. fail if not
 */
+// TODO: what if str is empty (or just whitespace) ?
 void
 validate(char* str) {
+    if (str) {
+        int index = 0;
+        int lineNum = 1;
+        int unmatchedParenCount = 0;
 
+        while (str[index] == ' ' || str[index] == '\t' || str[index] == '\n')
+            index++;
+
+        if (str[index] != '(' && !is_valid_word_char(str[index])) {
+            error_and_quit("Script starts with invalid char", lineNum);
+            return;
+        }
+
+        bool inWordNow = false;
+        enum operator_type lastSeenOp = NONE;
+        
+        while (str[index]) {
+            if (is_valid_word_char(str[index])) {
+                if (lastSeenOp == INDIRECT || lastSeenOp == OUTDIRECT) {
+                    error_and_quit("Too many arguments to I/O redirect", lineNum);
+                    return;
+                }
+
+                inWordNow = true;
+            }
+            else if (str[index] == '&') {
+                if (!inWordNow) {
+                    error_and_quit("Too few operands", lineNum);
+                    return;
+                }
+
+                if (str[index+1] != '&') {
+                    error_and_quit("Invalid operator found", lineNum);
+                    return;
+                }
+
+                lastSeenOp = AND;
+                index++;
+                inWordNow = false;
+            }
+            else if (str[index] == '|') {
+                if (!inWordNow) {
+                    error_and_quit("Too few operands", lineNum);
+                    return;
+                }
+
+                // found OR
+                if (str[index+1] == '|') {
+                    lastSeenOp = OR;
+                    index++;
+                } 
+                // found PIPE
+                else {
+                    lastSeenOp = PIPE;
+                }
+
+                inWordNow = false;
+            }
+            else if (str[index] == '<') {
+                if (!inWordNow) {
+                    error_and_quit("Too few operands", lineNum);
+                    return;
+                }
+
+                if (lastSeenOp == INDIRECT || lastSeenOp == OUTDIRECT) {
+                    error_and_quit("Invalid use of input redirect", lineNum);
+                    return;
+                }
+
+                do {
+                    index++;
+                } while (str[index] == ' ' || str[index] == '\t');
+
+                if (!is_valid_word_char(str[index])) {
+                    error_and_quit("No file specified", lineNum);
+                    return;
+                }
+
+                do {
+                    index++;
+                } while (is_valid_word_char(str[index]));
+
+                /* inWordNow is left as true */
+
+                lastSeenOp = INDIRECT;
+                continue;
+            }
+            else if (str[index] == '>') {
+                if (!inWordNow) {
+                    error_and_quit("Too few operands", lineNum);
+                    return;
+                }
+
+                if (lastSeenOp == OUTDIRECT) {
+                    error_and_quit("Output redirect cannot follow output redirect", lineNum);
+                    return;
+                }
+
+                do {
+                    index++;
+                } while (str[index] == ' ' || str[index] == '\t');
+
+                if (!is_valid_word_char(str[index])) {
+                    error_and_quit("No file specified", lineNum);
+                    return;
+                }
+
+                do {
+                    index++;
+                } while (is_valid_word_char(str[index]));
+
+                lastSeenOp = OUTDIRECT;
+                continue;                
+
+                /* inWordNow is left as true */
+
+            }
+            else if (str[index] == ';') {
+                if (!inWordNow) {
+                    error_and_quit("Too few operands", lineNum);
+                    return;
+                }
+
+                lastSeenOp = SEQUENCE;                
+                inWordNow = false;
+            }
+            else if (str[index] == '(') {
+                if (inWordNow) {
+                    error_and_quit("Too few operators", lineNum);
+                    return;
+                }
+
+                unmatchedParenCount++;
+
+                inWordNow = false;
+
+            }
+            else if (str[index] == ')') {
+                if (!inWordNow) {
+                    error_and_quit("Too few operands", lineNum);
+                    return;
+                }
+
+                unmatchedParenCount--;
+
+                if (unmatchedParenCount < 0) {
+                    error_and_quit("Unmatched parentheses", lineNum);
+                    return;
+                }
+
+                /* inWordNow is left as true */
+                
+            }
+            else if (str[index] == '\t' || str[index] == ' ') {
+                /* do nothing */
+            }
+            else if (str[index] == '#') {
+                do {
+                    index++;
+                } while (str[index] && str[index] != '\n');
+                
+                continue;
+            }
+            else if (str[index] == '\n') {
+                // delimeter for complete command
+                if (inWordNow && str[index+1] == '\n') {
+                    lineNum++;
+                    do {
+                        index++;
+                        if (str[index] == '\n')
+                            lineNum++;
+                    } while (str[index] == '\n' || str[index] == ' ' || str[index] == '\t');     
+                    if (str[index] != '(' && !is_valid_word_char(str[index]) && str[index] != '#') {
+                        error_and_quit("Script starts with invalid char", lineNum);
+                    }
+                    bool inWordNow = false;
+                    lastSeenOp = NONE;
+                    continue;
+                }
+                if (inWordNow)
+                    lastSeenOp = SEQUENCE;
+                inWordNow = false;
+                lineNum++;
+            }
+            // invalid character
+            else {
+                error_and_quit("Invalid character found ", lineNum);
+                return;
+            }
+            index++;
+        }
+
+        if (!inWordNow) {
+            error_and_quit("Too few operands", lineNum);
+            return;
+        }
+
+        if (unmatchedParenCount > 0) {
+            error_and_quit("Unmatched parentheses", lineNum);
+            return;
+        }
+
+    }
+    printf("VALID AS FUCK\n");
 }
 
 command_stream_t
@@ -263,8 +501,41 @@ make_command_stream (int (*get_next_byte) (void *),
                      void *get_next_byte_argument)
 {
 
-    char* str = file_to_str(get_next_byte, get_next_byte_argument);
-    printf("%s", str);
+//THESE SHOULD FAIL
+/*    char** test = (char *[]){
+        "`",
+        ">",
+        "<",
+        "a >b <",
+        ";",
+        "; a",
+        "a ||",
+        "a\n|| b",
+        "a\n| b",
+        "a\n; b",
+        "a;;b",
+        "a&&&b",
+        "a|||b",
+        "|a",
+        "< a",
+        "&& a",
+        "||a",
+        "(a|b",
+        "a;b)",
+        "( (a)",
+        "a>>>b"
+    };*/
+
+    //char* test = "true\n\ng++ -c foo.c\n\n: : :\n\ncat < /etc/passwd | tr a-z A-Z | sort -u || echo sort failed!\n\na b<c > d\n\ncat < /etc/passwd | tr a-z A-Z | sort -u > out || echo sort failed!\n\na&&b||\n c &&\n  d | e && f|\n\ng<h\n\n# This is a weird example: nobody would ever want to run this.\na<b>c|d<e>f|g<h>i";
+    char* test = "echo b && #lol\nb";
+    char* test3 = "echo b && \n\n\n #g;e \necho ghee";
+    //char* test = "a || \n\n b";
+
+
+    // TODO-TUAN
+    char* test2 = "a \n      \n b";
+    validate(test);
+    
   /* FIXME: Replace this with your implementation.  You may need to
     add auxiliary functions and otherwise modify the source code.
     You can also use external functions defined in the GNU C Library. */
@@ -356,7 +627,10 @@ test_tokenize_complete_cmds() {
 
 //     // char* str = file_to_str(get_next_byte, script_stream);
 //     // printf("%s", str);
-//     //test_tokenize_complete_cmds();
-//     //test_replace_whitespace_after_op();
+
+//     char* test = "`";
+
+//     validate(test);
+
 //     return 0;
 // }
