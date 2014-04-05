@@ -132,13 +132,11 @@ tokenize_complete_cmds(char* str) {
 
         int cmdIndex;
         char* complete_cmd = strtok (str, COMPLETE_CMD_DELIM_STR);
-
         // while there are tokens left, put in cmdArray
-        for (cmdIndex = 0; complete_cmd != NULL; cmdIndex++) {
+        for (cmdIndex = 0; complete_cmd != NULL && cmdIndex < cmdCount; cmdIndex++) {
             cmdArray[cmdIndex] = complete_cmd;
             complete_cmd = strtok (NULL, COMPLETE_CMD_DELIM_STR);
         }
-        cmdArray[cmdIndex] = NULL;
 
         return cmdArray;
     }
@@ -542,7 +540,7 @@ parse_complete_command(const char* str) {
 
     while(str[index]) {
 
-        printf("%c\t%d\n", str[index], index);
+        //printf("%c\t%d\n", str[index], index);
 
         if (str[index] == '(') {
             push(cmdStack, OPEN_PAREN_COMMAND);
@@ -796,7 +794,7 @@ make_command_stream (int (*get_next_byte) (void *),
     printf("COMMAND ARRAY\n----------------\n");
 
     int j;
-    for (j = 0; completeCmds[j] != NULL; ++j) {
+    for (j = 0; completeCmds[j] != NULL; j++) {
         printf("%s\t\t%d\n", completeCmds[j], j);
     }
 
@@ -809,7 +807,6 @@ make_command_stream (int (*get_next_byte) (void *),
     for (i = 0; i < j; ++i) {
         printf("building command %d\n\n", i);
         push_back(commandStream, parse_complete_command(completeCmds[i]));
-        free(completeCmds[i]);
     }
 
     return commandStream;
