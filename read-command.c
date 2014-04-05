@@ -4,6 +4,7 @@
 #include "command-internals.h"
 #include "string.h"
 #include "alloc.h"
+#include "stack.h"
 #include <stdio.h>
 #include <stdlib.h>
 // 
@@ -11,39 +12,14 @@
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
 
+// **************** TODO CHANGE MALLOC TO CHECKED_MALLOC ***************
+
 const char COMPLETE_CMD_DELIM = '~';
 const void* OPEN_PAREN_COMMAND = NULL;
 
 static int
-get_next_byte (void *stream)
-{
-  return getc (stream);
-}
-
-command_t
-combine_command(command_t first, command_t second, command_t op) {
-    op->u.command[0] = first;
-    op->u.command[1] = second;
-    return op;
-}
-
-int
-precedence(command_t operator) {
-    if (operator) {
-        switch (operator->type) {
-            case SEQUENCE_COMMAND:
-                return 1;
-            case AND_COMMAND:
-            case OR_COMMAND:
-                return 2;
-            case PIPE_COMMAND:
-                return 3;
-            default:
-                return 0;
-        }
-    }
-    // add an error() here. "defensive programming"
-    return -1;
+get_next_byte (void *stream) {
+    return getc (stream);
 }
 
 /**
@@ -72,7 +48,7 @@ replace_multiple_newlines(char* str) {
 /**
 * replace backslash newlines with backtick
 */
-void 
+void
 replace_backslash_newline(char* str) {
     if (str) {
         int length = strlen(str);
@@ -146,30 +122,9 @@ tokenize_complete_cmds(char* str) {
 }
 
 /**
-* starting from *index, return next non-backtick character
+* reads the content of get_next_byte_argument into a c-string
 */
-int
-get_next_nonbacktick_char(char* str, int* index) {
-    int c;
-    do {
-        c = str[(*index)++];
-    } while (c == '`');
-    return c;
-}
-
-/**
-* starting from *index, return next non-whitespace character
-*/
-int
-get_next_nonwhitespace_byte(char* str, int* index) {
-    int c;
-    do {
-        c = str[(*index)++];
-    } while (c == ' ' || c == '\t');
-    return c;
-}
-
-char* 
+char*
 file_to_str(int (*get_next_byte) (void *),
             void *get_next_byte_argument) {
 
@@ -191,19 +146,132 @@ file_to_str(int (*get_next_byte) (void *),
     return toReturn;
 }
 
+/**
+* combines first and second into a single command (op)
+*/
+command_t
+combine_command(command_t first, command_t second, command_t op) {
+    op->u.command[0] = first;
+    op->u.command[1] = second;
+    return op;
+}
+
+/**
+* returns an int corresponding to the precedence of operator
+*/
+int
+precedence(command_t operator) {
+    if (operator) {
+        switch (operator->type) {
+            case SEQUENCE_COMMAND:
+                return 1;
+            case AND_COMMAND:
+            case OR_COMMAND:
+                return 2;
+            case PIPE_COMMAND:
+                return 3;
+            default:
+                return 0;
+        }
+    }
+    // add an error() here. "defensive programming"
+    return -1;
+}
+
+/**
+* called when an operator is found when building a command tree
+*/
+void
+push_new_operator(command_t op, cmd_stk_t cmdStack, cmd_stk_t opStack) {
+    if (empty(opStack) || (precedence(op) > precedence(peek(opStack)))) {
+        push(opStack, op);
+    } else {
+        while (peek(opStack) != OPEN_PAREN_COMMAND && precedence(op) <= precedence(peek(opStack))) {
+            command_t topOperator = pop(opStack);
+            command_t secondCmd = pop(cmdStack);
+            command_t firstCmd = pop(cmdStack);
+
+            command_t combinedCmd = combine_command(firstCmd, secondCmd, topOperator);
+            push(cmdStack, combinedCmd);
+
+            if (empty(opStack)) 
+                break;
+        }
+        push(opStack, op);
+    }
+}
+
+/**
+* called when a close paren is found when building a command tree
+*/
+void 
+handle_close_paren(cmd_stk_t cmdStack, cmd_stk_t opStack) {
+    command_t topOperator = pop(opStack);
+
+    while (topOperator != OPEN_PAREN_COMMAND) {
+        command_t secondCmd = pop(cmdStack);
+        command_t firstCmd = pop(cmdStack);
+        command_t combinedCmd = combine_command(firstCmd, secondCmd, topOperator);
+
+        push(cmdStack, combinedCmd);
+        topOperator = pop(opStack);
+    }
+
+    command_t subshellCmd = (command_t) malloc(sizeof(struct command));
+
+    subshellCmd->type = SUBSHELL_COMMAND;
+    subshellCmd->input = subshellCmd->output = NULL;
+    subshellCmd->u.subshell_command = pop(cmdStack);
+
+    push(cmdStack, subshellCmd);
+}
+
+/**
+* starting from *index, return next non-backtick character
+*/
+int
+get_next_nonbacktick_char(char* str, int* index) {
+    int c;
+    do {
+        c = str[(*index)++];
+    } while (c == '`');
+    return c;
+}
+
+/**
+* starting from *index, return next non-whitespace character
+*/
+int
+get_next_nonwhitespace_char(char* str, int* index) {
+    int c;
+    do {
+        c = str[(*index)++];
+    } while (c == ' ' || c == '\t');
+    return c;
+}
+
+/**
+* validate the input for valid POSIX shell syntax. fail if not
+*/
+void
+validate(char* str) {
+
+}
+
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
                      void *get_next_byte_argument)
 {
 
-         char* str = file_to_str(get_next_byte, get_next_byte_argument);
-     printf("%s", str);
+    char* str = file_to_str(get_next_byte, get_next_byte_argument);
+    printf("%s", str);
   /* FIXME: Replace this with your implementation.  You may need to
     add auxiliary functions and otherwise modify the source code.
     You can also use external functions defined in the GNU C Library. */
 
-    /* validation */
+    /* cleanup */
 
+    /* validation */
 
     /* split by \n\n and put into array */
 
@@ -230,6 +298,7 @@ read_command_stream (command_stream_t s)
 void
 test_replace_backslash_newline() {
     char testArray[] = "ec\\\n\\\nho ghee";
+    printf("TEST REPLACE BACKSLASH NEWLINE\n--------------------------------\n\n");
     printf("ORIGINAL COMMAND STRING\n----------------\n");
     printf("%s\n", testArray);
     replace_backslash_newline(testArray);
@@ -238,8 +307,9 @@ test_replace_backslash_newline() {
 }
 
 void 
-test_replace_newlines() {
+test_replace_multiple_newlines() {
     char testArray[] = "a |\nb \n\n \n b && c || e | f \n\n\n\n";
+    printf("TEST REPLACE MULTIPLE NEWLINES\n--------------------------------\n\n");
     printf("ORIGINAL COMMAND STRING\n----------------\n");
     printf("%s\n", testArray);
     replace_multiple_newlines(testArray);
@@ -249,7 +319,8 @@ test_replace_newlines() {
 
 void 
 test_replace_whitespace_after_op() {
-    char testArray[] = "a | \\\n \\\n \t \n \n b \n\n e || f | \\\n     g";
+    char testArray[] = "a | \n \n \t \n \n b \n\n e || f | \n     g";
+    printf("TEST REPLACE WHITESPACE AFTER OP\n--------------------------------\n\n");
     printf("ORIGINAL COMMAND STRING\n----------------\n");
     printf("%s\n", testArray);
     replace_whitespace_after_op(testArray);
@@ -259,14 +330,15 @@ test_replace_whitespace_after_op() {
 
 void 
 test_tokenize_complete_cmds() {
-    //char testArray[] = "a || b \n\n \n c && \n d || e | f \n\n\n echo ghee \n\n";
-    char testArray[] = 
-    "true\n\ng++ -c foo.c\n\n: : :\n\n\n\n\ncat < /etc/passwd | tr a-z A-Z | sort -u || echo sort failed!\n\na b<c > d\n\ncat < /etc/passwd | tr a-z A-Z | sort -u > out || echo sort failed!\n\na&&b||\nc &&\n d | e && f|\n\ng<h\n\n# This is a weird example: nobody would ever want to run this.\na<b>c|d<e>f|g<h>i";
-
+    char testArray[] = "a || b \n\n \n c && \n d || e | f \n\n\n echo ghee \n\n";
+    //char testArray[] = 
+    //"true\n\ng++ -c foo.c\n\n: : :\n\n\n\n\ncat < /etc/passwd | tr a-z A-Z | sort -u || echo sort failed!\n\na b<c > d\n\ncat < /etc/passwd | tr a-z A-Z | sort -u > out || echo sort failed!\n\na&&b||\nc &&\n d | e && f|\n\ng<h\n\n# This is a weird example: nobody would ever want to run this.\na<b>c|d<e>f|g<h>i";
+    printf("TEST TOKENIZE COMPLETE COMMANDS\n--------------------------------\n\n");
     printf("ORIGINAL COMMAND STRING\n----------------\n");
     printf("%s\n", testArray);
 
     replace_multiple_newlines(testArray);
+    replace_whitespace_after_op(testArray);
     char** newArray = tokenize_complete_cmds(testArray);
 
     printf("COMMAND ARRAY\n----------------\n");
@@ -284,6 +356,7 @@ test_tokenize_complete_cmds() {
 
 //     // char* str = file_to_str(get_next_byte, script_stream);
 //     // printf("%s", str);
-//     test_tokenize_complete_cmds();
+//     //test_tokenize_complete_cmds();
+//     //test_replace_whitespace_after_op();
 //     return 0;
 // }
