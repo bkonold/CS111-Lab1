@@ -19,6 +19,7 @@ enum operator_type {
     SEQUENCE,
     INDIRECT,
     OUTDIRECT,
+    CLOSE_PAREN,
     NONE,
 };
 
@@ -213,6 +214,9 @@ validate(const char* str) {
                 if (lastSeenOp == INDIRECT || lastSeenOp == OUTDIRECT) {
                     error_and_quit("Too many arguments to I/O redirect", lineNum);
                     return;
+                } else if (lastSeenOp == CLOSE_PAREN) {
+                    error_and_quit("Too few operators", lineNum);
+                    return;
                 }
 
                 inWordNow = true;
@@ -342,6 +346,7 @@ validate(const char* str) {
                     return;
                 }
 
+                lastSeenOp = CLOSE_PAREN;
                 /* inWordNow is left as true */
                 
             }
@@ -545,9 +550,23 @@ parse_complete_command(const char* str) {
         //printf("%c\t%d\n", str[index], index);
 
         if (str[index] == '(') {
-            push(cmdStack, OPEN_PAREN_COMMAND);
+            push(opStack, OPEN_PAREN_COMMAND);
             get_next_nonwhitespace_char(str, &index);
         } 
+        else if (str[index] == '<') {
+            get_next_nonwhitespace_char(str, &index);
+            char *inputFileName = get_next_word(str, &index);
+            command_t cmd = pop(cmdStack);
+            cmd->input = inputFileName;
+            push(cmdStack, cmd);
+        }
+        else if (str[index] == '>') {
+            get_next_nonwhitespace_char(str, &index);
+            char *outputFileName = get_next_word(str, &index);
+            command_t cmd = pop(cmdStack);
+            cmd->output = outputFileName;
+            push(cmdStack, cmd);
+        }
         // simple command
         else if (is_valid_word_char(str[index])) {
             int wordEndIndex = index;
@@ -573,23 +592,12 @@ parse_complete_command(const char* str) {
             cmd->input = NULL;
             cmd->output = NULL;
 
-            if (str[index] == '<') {
-                get_next_nonwhitespace_char(str, &index);
-                char *inputFileName = get_next_word(str, &index);
-                cmd->input = inputFileName;
-            }
-
-            if (str[index] == '>') {
-                get_next_nonwhitespace_char(str, &index);
-                char *outputFileName = get_next_word(str, &index);
-                cmd->output = outputFileName;
-            }
-
             push(cmdStack, cmd);
             continue;
         }
         else if (str[index] == ')') {
             handle_close_paren(cmdStack, opStack);
+            get_next_nonwhitespace_char(str, &index);
             continue;
         } 
         else if (str[index] == '&') {
@@ -806,4 +814,3 @@ read_command_stream (command_stream_t s)
     //error (1, 0, "command reading not yet implemented");
     return NULL;
 }
-
