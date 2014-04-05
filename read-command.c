@@ -1,21 +1,49 @@
 // UCLA CS 111 Lab 1 command reading
 
 #include "command.h"
+#include "command-internals.h"
 #include "string.h"
 #include "alloc.h"
 #include <stdio.h>
 #include <stdlib.h>
-//#include <error.h>
+// 
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
 
 const char COMPLETE_CMD_DELIM = '~';
+const void* OPEN_PAREN_COMMAND = NULL;
 
 static int
 get_next_byte (void *stream)
 {
   return getc (stream);
+}
+
+command_t
+combine_command(command_t first, command_t second, command_t op) {
+    op->u.command[0] = first;
+    op->u.command[1] = second;
+    return op;
+}
+
+int
+precedence(command_t operator) {
+    if (operator) {
+        switch (operator->type) {
+            case SEQUENCE_COMMAND:
+                return 1;
+            case AND_COMMAND:
+            case OR_COMMAND:
+                return 2;
+            case PIPE_COMMAND:
+                return 3;
+            default:
+                return 0;
+        }
+    }
+    // add an error() here. "defensive programming"
+    return -1;
 }
 
 /**
@@ -97,7 +125,7 @@ tokenize_complete_cmds(char* str) {
                 cmdCount++;
         }
 
-        char** cmdArray = (char**) checked_malloc((cmdCount + 1) * sizeof(char*));
+        char** cmdArray = (char**) malloc((cmdCount + 1) * sizeof(char*));
 
         // to find length later
         cmdArray[cmdCount] = NULL;
@@ -167,6 +195,9 @@ command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
                      void *get_next_byte_argument)
 {
+
+         char* str = file_to_str(get_next_byte, get_next_byte_argument);
+     printf("%s", str);
   /* FIXME: Replace this with your implementation.  You may need to
     add auxiliary functions and otherwise modify the source code.
     You can also use external functions defined in the GNU C Library. */
@@ -179,7 +210,7 @@ make_command_stream (int (*get_next_byte) (void *),
     /* loop through the array, making each a command tree */
 
 
-    //error (1, 0, "command reading not yet implemented");
+    ////error (1, 0, "command reading not yet implemented");
     return 0;
 }
 
@@ -187,7 +218,7 @@ command_t
 read_command_stream (command_stream_t s)
 {
     /* FIXME: Replace this with your implementation too.  */
-    //error (1, 0, "command reading not yet implemented");
+    ////error (1, 0, "command reading not yet implemented");
     return 0;
 }
 
@@ -228,7 +259,9 @@ test_replace_whitespace_after_op() {
 
 void 
 test_tokenize_complete_cmds() {
-    char testArray[] = "a || b \n\n \n c && \n d || e | f \n\n\n echo ghee \n\n";
+    //char testArray[] = "a || b \n\n \n c && \n d || e | f \n\n\n echo ghee \n\n";
+    char testArray[] = 
+    "true\n\ng++ -c foo.c\n\n: : :\n\n\n\n\ncat < /etc/passwd | tr a-z A-Z | sort -u || echo sort failed!\n\na b<c > d\n\ncat < /etc/passwd | tr a-z A-Z | sort -u > out || echo sort failed!\n\na&&b||\nc &&\n d | e && f|\n\ng<h\n\n# This is a weird example: nobody would ever want to run this.\na<b>c|d<e>f|g<h>i";
 
     printf("ORIGINAL COMMAND STRING\n----------------\n");
     printf("%s\n", testArray);
@@ -243,13 +276,14 @@ test_tokenize_complete_cmds() {
     }
 }
 
-int 
-main(int argc, char const *argv[])
-{
-    const char* script_name = argv[1];
-    FILE *script_stream = fopen (script_name, "r");
+// int 
+// main(int argc, char const *argv[])
+// {
+//     // const char* script_name = argv[1];
+//     // FILE *script_stream = fopen (script_name, "r");
 
-    char* str = file_to_str(get_next_byte, script_stream);
-    printf("%s", str);
-    return 0;
-}
+//     // char* str = file_to_str(get_next_byte, script_stream);
+//     // printf("%s", str);
+//     test_tokenize_complete_cmds();
+//     return 0;
+// }

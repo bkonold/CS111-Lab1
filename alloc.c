@@ -2,14 +2,14 @@
 
 #include "alloc.h"
 
-#include <error.h>
+
 #include <errno.h>
 #include <stdlib.h>
 
 static void
 memory_exhausted (int errnum)
 {
-  error (1, errnum, "memory exhausted");
+  //error (1, errnum, "memory exhausted");
 }
 
 static void *
