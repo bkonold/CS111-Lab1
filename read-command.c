@@ -27,17 +27,12 @@ enum operator_type {
 const char* COMPLETE_CMD_DELIM_STR = "~";
 const void* OPEN_PAREN_COMMAND = NULL;
 
-static int
-get_next_byte (void *stream) {
-    return getc (stream);
-}
-
 /**
 * print error message and exit
 */
 void
 error_and_quit(char* message, int lineNum) {
-    printf("Error at %d: %s\n", lineNum, message);
+    fprintf(stderr, "Error at %d: %s\n", lineNum, message);
     exit(1);
 }
 
@@ -377,7 +372,7 @@ validate(const char* str) {
                     if (str[index] != '(' && !is_valid_word_char(str[index]) && str[index] != '#') {
                         error_and_quit("Script starts with invalid char", lineNum);
                     }
-                    bool inWordNow = false;
+                    inWordNow = false;
                     lastSeenOp = NONE;
                     continue;
                 }
@@ -723,59 +718,32 @@ test_tokenize_complete_cmds() {
 }
 
 void
-test_validate() {
+test_validate_fail() {
 //THESE SHOULD FAIL - from test-p-bad.sh
-/*    char** test = (char *[]){
-        "`",
-        ">",
-        "<",
-        "a >b <",
-        ";",
-        "; a",
-        "a ||",
-        "a\n|| b",
-        "a\n| b",
-        "a\n; b",
-        "a;;b",
-        "a&&&b",
-        "a|||b",
-        "|a",
-        "< a",
-        "&& a",
-        "||a",
-        "(a|b",
-        "a;b)",
-        "( (a)",
-        "a>>>b"
-    };*/
+    char** bad = (char *[]){
+        "a\t>\t>\t>b",
+        "a>b<c",
+        "(\t&&)",
+        "(\n\t\n)"
+    };
 
+    int i;
+    for (i = 0; i < 4; ++i) {
+        printf("--------\n%d\n", i);
+        validate(bad[i]);
+        printf("%s\n--------\n\n\n", bad[i]);
+    }
 // THESE SHOULD PASS - from test-p-ok.sh
     //char* test = "true\n\ng++ -c foo.c\n\n: : :\n\ncat < /etc/passwd | tr a-z A-Z | sort -u || echo sort failed!\n\na b<c > d\n\ncat < /etc/passwd | tr a-z A-Z | sort -u > out || echo sort failed!\n\na&&b||\n c &&\n  d | e && f|\n\ng<h\n\n# This is a weird example: nobody would ever want to run this.\na<b>c|d<e>f|g<h>i";
-    char* test = "echo b && #lol\nb";
-    char* test3 = "echo b && \n\n\n #g;e \necho ghee";
+    //char* test = "echo b && #lol\nb";
+    //char* test3 = "echo b && \n\n\n #g;e \necho ghee";
     //char* test = "a || \n\n b";
 
 
     // TODO-TUAN
-    char* test2 = "a \n      \n b";
-    validate(test);
+    //char* test2 = "a \n      \n b";
+    //validate(test);
 }
-
-// int 
-// main(int argc, char const *argv[])
-// {
-//     // const char* script_name = argv[1];
-//     // FILE *script_stream = fopen (script_name, "r");
-
-//     // char* str = file_to_str(get_next_byte, script_stream);
-//     // printf("%s", str);
-
-//     char* test = "`";
-
-//     validate(test);
-
-//     return 0;
-// }
 
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
