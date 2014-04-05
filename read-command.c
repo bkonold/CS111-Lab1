@@ -137,7 +137,7 @@ tokenize_complete_cmds(char* str) {
         // while there are tokens left, put in cmdArray
         for (cmdIndex = 0; complete_cmd != NULL && cmdIndex < cmdCount; cmdIndex++) {
             cmdArray[cmdIndex] = complete_cmd;
-            printf("%s\n", complete_cmd);
+            //printf("%s\n", complete_cmd);
             complete_cmd = strtok (NULL, COMPLETE_CMD_DELIM_STR);
         }
 
@@ -640,6 +640,14 @@ parse_complete_command(const char* str) {
             get_next_nonwhitespace_char(str, &index);
             continue;
         }
+        else if (str[index] == '#') {
+            do {
+                index++;
+            } while (str[index] && str[index] != '\n');
+            
+            get_next_nonwhitespace_char(str, &index);
+            continue;
+        }
     }
 
     //combine all operators sitting on opStack
@@ -791,18 +799,18 @@ make_command_stream (int (*get_next_byte) (void *),
     replace_whitespace_after_op(scriptStr);
     replace_multiple_newlines(scriptStr);
 
-    printf("after cleanup\n\n");
-    printf("%s\n", scriptStr);
+    // printf("after cleanup\n\n");
+    // printf("%s\n", scriptStr);
 
     /* split by \n\n and put into array */
     char** completeCmds = tokenize_complete_cmds(scriptStr);
 
-    printf("after tokenizing\n\n");
-    printf("COMMAND ARRAY\n----------------\n");
+    // printf("after tokenizing\n\n");
+    // printf("COMMAND ARRAY\n----------------\n");
 
     int j;
     for (j = 0; completeCmds[j] != NULL; j++) {
-        printf("%s\t\t%d\n", completeCmds[j], j);
+        // printf("%s\t\t%d\n", completeCmds[j], j);
     }
 
     command_stream_t commandStream = create_stack();
@@ -812,7 +820,7 @@ make_command_stream (int (*get_next_byte) (void *),
     /* loop through the array, making each a command tree */
     int i;
     for (i = 0; i < j; ++i) {
-        //printf("building command %d\n\n", i);
+        // printf("building command %d\n\n", i);
         push_back(commandStream, parse_complete_command(completeCmds[i]));
     }
 
