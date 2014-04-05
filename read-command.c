@@ -112,7 +112,7 @@ replace_whitespace_after_op(char* str) {
 char**
 tokenize_complete_cmds(char* str) {
     if (str) {
-        int cmdCount = 0;
+        int cmdCount = 1;
         int length = strlen(str);
 
         // determine size of char** array
@@ -120,8 +120,10 @@ tokenize_complete_cmds(char* str) {
         for (i = 0; i < length; ++i) {
             if (str[i] == COMPLETE_CMD_DELIM_STR[0]) {
                 cmdCount++;
-                while (str[i] == COMPLETE_CMD_DELIM_STR[0])
+                while (str[i] == COMPLETE_CMD_DELIM_STR[0]) {
                     i++;
+                }
+                continue;
             }
         }
 
@@ -135,6 +137,7 @@ tokenize_complete_cmds(char* str) {
         // while there are tokens left, put in cmdArray
         for (cmdIndex = 0; complete_cmd != NULL && cmdIndex < cmdCount; cmdIndex++) {
             cmdArray[cmdIndex] = complete_cmd;
+            printf("%s\n", complete_cmd);
             complete_cmd = strtok (NULL, COMPLETE_CMD_DELIM_STR);
         }
 
@@ -165,6 +168,11 @@ file_to_str(int (*get_next_byte) (void *),
         c = get_next_byte(get_next_byte_argument);
     }
     toReturn[i] = '\0';
+    i--;
+    while (toReturn[i] == ' ' || toReturn[i] == '\t' || toReturn[i] == '\n') {
+        toReturn[i] = '\0';
+        i--;
+    }
 
     return toReturn;
 }
@@ -375,9 +383,8 @@ validate(const char* str) {
                 }
                 if (inWordNow)
                     lastSeenOp = SEQUENCE;
+
                 inWordNow = false;
-                if (index == (strlen(str)-1) && str[index] == '\n')
-                    inWordNow = true;
                 lineNum++;
             }
             // invalid character
@@ -533,8 +540,8 @@ command_t
 parse_complete_command(const char* str) {
     int index = -1;
 
-    cmd_stk_t cmdStack = (cmd_stk_t) malloc(sizeof(struct stack));
-    cmd_stk_t opStack = (cmd_stk_t) malloc(sizeof(struct stack));
+    cmd_stk_t cmdStack = create_stack();
+    cmd_stk_t opStack = create_stack();
 
     get_next_nonwhitespace_char(str, &index);
 
@@ -770,7 +777,7 @@ make_command_stream (int (*get_next_byte) (void *),
     add auxiliary functions and otherwise modify the source code.
     You can also use external functions defined in the GNU C Library. */
 
-    printf("at the beginning\n\n");
+    //printf("at the beginning\n\n");
 
     // convert file to c-string
     char* scriptStr = file_to_str(get_next_byte, get_next_byte_argument);
@@ -778,19 +785,19 @@ make_command_stream (int (*get_next_byte) (void *),
     /* validation */
     validate(scriptStr);
 
-    printf("after validation\n\n");
+    //printf("after validation\n\n");
 
     /* cleanup a little bit before splitting by \n\n */
     replace_whitespace_after_op(scriptStr);
     replace_multiple_newlines(scriptStr);
 
     printf("after cleanup\n\n");
+    printf("%s\n", scriptStr);
 
     /* split by \n\n and put into array */
     char** completeCmds = tokenize_complete_cmds(scriptStr);
 
     printf("after tokenizing\n\n");
-
     printf("COMMAND ARRAY\n----------------\n");
 
     int j;
@@ -800,12 +807,12 @@ make_command_stream (int (*get_next_byte) (void *),
 
     command_stream_t commandStream = create_stack();
 
-    printf("created command stream\n\n");
+    //printf("created command stream\n\n");
 
     /* loop through the array, making each a command tree */
     int i;
     for (i = 0; i < j; ++i) {
-        printf("building command %d\n\n", i);
+        //printf("building command %d\n\n", i);
         push_back(commandStream, parse_complete_command(completeCmds[i]));
     }
 
