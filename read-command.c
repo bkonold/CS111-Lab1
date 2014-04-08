@@ -26,7 +26,7 @@ enum operator_type {
 // **************** TODO CHANGE MALLOC TO CHECKED_MALLOC ***************
 
 const char* COMPLETE_CMD_DELIM_STR = "~";
-const void* OPEN_PAREN_COMMAND = NULL;
+const command_t OPEN_PAREN_COMMAND = NULL;
 
 /**
 * print error message and exit
@@ -578,7 +578,6 @@ parse_complete_command(const char* str) {
         }
         // simple command
         else if (is_valid_word_char(str[index])) {
-            int wordEndIndex = index;
 
             char** words = NULL;
             int wordCount = 0;
