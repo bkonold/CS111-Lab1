@@ -38,6 +38,28 @@ error_and_quit(char* message, int lineNum) {
 }
 
 /**
+* replace all whitespace before ')'
+*/
+void
+replace_whitespace_before_close_paren(char* str) {
+    if (str) {
+        int length = strlen(str) - 1;
+        int i;
+        for (i = length; i > 0; i--) {
+            // two consecutive newlines
+            if (str[i] == ')') {
+                int j;
+                // replace all whitespace characters preceeding a close paren with spaces
+                for (j = i-1; str[j] == '\n' || str[j] == ' ' || str[j] == '\t'; j--) {
+                    str[j] = ' ';
+                }
+                i = j + 1;
+            }
+        }
+    }
+}
+
+/**
 * replace 2 or more newlines with COMPLETE_CMD_DELIM
 */
 void
@@ -62,26 +84,6 @@ replace_multiple_newlines(char* str) {
 }
 
 /**
-* replace backslash newlines with backtick
-* TODO-TUAN: do backslashes matter?
-*/
-/*void
-replace_backslash_newline(char* str) {
-    if (str) {
-        int length = strlen(str);
-        int i;
-        for (i = 0; i < length; i++) {
-            // two consecutive newlines
-            if ((str[i] == '\\') && (i != length-1) && ((str[i+1] == '\n'))) {
-                str[i+1] = '`';
-                str[i] = '`';
-                i++;
-            }
-        }
-    }
-}*/
-
-/**
 * replace any whitespace after an operator with spaces
 */
 void
@@ -90,8 +92,15 @@ replace_whitespace_after_op(char* str) {
         int length = strlen(str);
         int i;
         for (i = 0; i < length; i++) {
+            // ignore comments
+            if (str[i] == '#') {
+                do {
+                    i++;
+                } while (str[i] && str[i] != '\n');
+                i--;
+            }
             // two consecutive newlines
-            if (str[i] == '&' || str[i] == '|' || str[i] == '(') {
+            if (str[i] == '&' || str[i] == '|' || str[i] == '(' || str[i] == ';') {
                 int j;
                 for (j = i+1; str[j] == '\n' || str[j] == ' ' || str[j] == '\t'; j++) {
                     str[j] = ' ';
@@ -406,7 +415,7 @@ validate(const char* str) {
         }
 
     }
-    //printf("VALID AS FUCK\n");
+    //printf("ABSOLUTELY VALID\n");
 }
 
 /**
@@ -671,7 +680,7 @@ parse_complete_command(const char* str) {
 
 void
 test_replace_backslash_newline() {
-    char testArray[] = "ec\\\n\\\nho ghee";
+    char testArray[] = "ec\\\n\\\nho test";
     printf("TEST REPLACE BACKSLASH NEWLINE\n--------------------------------\n\n");
     printf("ORIGINAL COMMAND STRING\n----------------\n");
     printf("%s\n", testArray);
@@ -683,7 +692,7 @@ test_replace_backslash_newline() {
 void 
 test_replace_whitespace_after_op() {
     //char testArray[] = "a | \n \n \t \n \n b \n\n e || f | \n     g";
-    char testArray[] = "a || b \n\n c && \n d || e | f \n\n\n echo ghee \n\n";
+    char testArray[] = "a || b \n\n c && \n d || e | f \n\n\n echo test \n\n";
     printf("TEST REPLACE WHITESPACE AFTER OP\n--------------------------------\n\n");
     printf("ORIGINAL COMMAND STRING\n----------------\n");
     printf("%s\n", testArray);
@@ -695,7 +704,7 @@ test_replace_whitespace_after_op() {
 void 
 test_replace_multiple_newlines() {
     //char testArray[] = "a |\nb \n\n \n b && c || e | f \n\n\n\n";
-    char testArray[] = "a || b \n\n c && \n d || e | f \n\n\n echo ghee \n\n";
+    char testArray[] = "a || b \n\n c && \n d || e | f \n\n\n echo test \n\n";
     printf("TEST REPLACE MULTIPLE NEWLINES\n--------------------------------\n\n");
     printf("ORIGINAL COMMAND STRING\n----------------\n");
     printf("%s\n", testArray);
@@ -707,8 +716,8 @@ test_replace_multiple_newlines() {
 
 void 
 test_tokenize_complete_cmds() {
-    //char testArray[] = "a || b \n\n c && \n d || \n e | f \n\n\n echo ghee \n\n";
-    char testArray[] = "echo ghee\necho ghee";
+    //char testArray[] = "a || b \n\n c && \n d || \n e | f \n\n\n echo test \n\n";
+    char testArray[] = "echo test\necho test";
     //"true\n\ng++ -c foo.c\n\n: : :\n\n\n\n\ncat < /etc/passwd | tr a-z A-Z | sort -u || echo sort failed!\n\na b<c > d\n\ncat < /etc/passwd | tr a-z A-Z | sort -u > out || echo sort failed!\n\na&&b||\nc &&\n d | e && f|\n\ng<h\n\n# This is a weird example: nobody would ever want to run this.\na<b>c|d<e>f|g<h>i";
     printf("TEST TOKENIZE COMPLETE COMMANDS\n--------------------------------\n\n");
     printf("ORIGINAL COMMAND STRING\n----------------\n");
@@ -744,7 +753,7 @@ test_validate_fail() {
 // THESE SHOULD PASS - from test-p-ok.sh
     //char* test = "true\n\ng++ -c foo.c\n\n: : :\n\ncat < /etc/passwd | tr a-z A-Z | sort -u || echo sort failed!\n\na b<c > d\n\ncat < /etc/passwd | tr a-z A-Z | sort -u > out || echo sort failed!\n\na&&b||\n c &&\n  d | e && f|\n\ng<h\n\n# This is a weird example: nobody would ever want to run this.\na<b>c|d<e>f|g<h>i";
     //char* test = "echo b && #lol\nb";
-    //char* test3 = "echo b && \n\n\n #g;e \necho ghee";
+    //char* test3 = "echo b && \n\n\n #g;e \necho test";
     //char* test = "a || \n\n b";
 
 
@@ -765,7 +774,9 @@ make_command_stream (int (*get_next_byte) (void *),
 
     // convert file to c-string
     char* scriptStr = file_to_str(get_next_byte, get_next_byte_argument);
-
+    
+    replace_whitespace_before_close_paren(scriptStr);
+    
     /* validation */
     validate(scriptStr);
 
