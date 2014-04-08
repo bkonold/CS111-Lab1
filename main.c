@@ -1,7 +1,7 @@
 // UCLA CS 111 Lab 1 main program
 
 #include <errno.h>
-
+#include <error.h>
 #include <getopt.h>
 #include <stdio.h>
 

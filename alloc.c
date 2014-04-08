@@ -1,8 +1,7 @@
 // UCLA CS 111 Lab 1 storage allocation
 
 #include "alloc.h"
-
-
+#include <error.h>
 #include <errno.h>
 #include <stdlib.h>
 
