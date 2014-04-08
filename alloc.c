@@ -9,7 +9,7 @@
 static void
 memory_exhausted (int errnum)
 {
-  //error (1, errnum, "memory exhausted");
+  error (1, errnum, "memory exhausted");
 }
 
 static void *

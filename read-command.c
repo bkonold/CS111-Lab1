@@ -811,8 +811,6 @@ make_command_stream (int (*get_next_byte) (void *),
     }
 
     return commandStream;
-
-    ////error (1, 0, "command reading not yet implemented");
 }
 
 command_t
@@ -821,6 +819,5 @@ read_command_stream (command_stream_t s)
     if (!empty(s)) {
         return pop(s);
     }
-    //error (1, 0, "command reading not yet implemented");
     return NULL;
 }
