@@ -178,6 +178,9 @@ file_to_str(int (*get_next_byte) (void *),
         toReturn[i] = '\0';
         i--;
     }
+    i = 0;
+    while (toReturn[i] && (toReturn[i] == '\n' || toReturn[i] == '\t' || toReturn[i] == ' '))
+        toReturn[i++] = ' ';
 
     return toReturn;
 }
