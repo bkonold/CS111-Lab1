@@ -1,0 +1,10 @@
+CS111-Lab1a
+==========
+
+Partner 1: Brett Konold (UID: 204-029-683)
+Partner 2: Divakar Bala (UID: 804-042-163)
+
+Known Limitations:
+
+1. Our program segfaults when there are two or more consecutive newlines between two commands within a subshell.
+2. Our program segfaults when two commands are separated by the following sequence: newline, whitespace, newline.
