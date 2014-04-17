@@ -28,12 +28,12 @@ setup_redirects(command_t c)
 		int inputFile = open(c->input, O_RDONLY, 0444);
 		if (inputFile < 0)
 		{
-			printf("Failed to open input file. Exiting\n");
+			//printf("Failed to open input file. Exiting\n");
 			exit(1);
 		}
 		if (dup2(inputFile, 0) < 0)
 		{
-			printf("Failed to redirect file to STDIN. Exiting\n");
+			//printf("Failed to redirect file to STDIN. Exiting\n");
 			exit(1);
 		}
 		close(inputFile);
@@ -44,12 +44,12 @@ setup_redirects(command_t c)
 		int outputFile = open(c->output, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		if (outputFile < 0)
 		{
-			printf("Failed to open output file. Exiting\n");
+			//printf("Failed to open output file. Exiting\n");
 			exit(1);
 		}
 		if (dup2(outputFile, 1) < 0)
 		{
-			printf("Failed to redirect STDOUT to file. Exiting\n");
+			//printf("Failed to redirect STDOUT to file. Exiting\n");
 			exit(1);
 		}
 		close(outputFile);
@@ -65,7 +65,7 @@ execute_simple(command_t c)
 	{
 		setup_redirects(c);
 		execvp(c->u.word[0], c->u.word);
-		printf("execvp() failed. Exiting\n");
+		//printf("execvp() failed. Exiting\n");
 		exit(1);
 	}
 
