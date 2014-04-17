@@ -19,6 +19,9 @@ enum operator_type {
     SEQUENCE,
     INDIRECT,
     OUTDIRECT,
+    F_OUTDIRECT,
+    IN_N_OUT,
+    APPDIRECT,
     CLOSE_PAREN,
     NONE,
 };
@@ -223,7 +226,8 @@ validate(const char* str) {
         
         while (str[index]) {
             if (is_valid_word_char(str[index])) {
-                if (lastSeenOp == INDIRECT || lastSeenOp == OUTDIRECT) {
+                if (lastSeenOp == INDIRECT || lastSeenOp == OUTDIRECT || lastSeenOp == F_OUTDIRECT
+                    || lastSeenOp == IN_N_OUT || lastSeenOp == APPDIRECT) {
                     error_and_quit("Too many arguments to I/O redirect", lineNum);
                     return;
                 } else if (lastSeenOp == CLOSE_PAREN) {
@@ -272,9 +276,17 @@ validate(const char* str) {
                     return;
                 }
 
-                if (lastSeenOp == INDIRECT || lastSeenOp == OUTDIRECT) {
+                if (lastSeenOp == INDIRECT || lastSeenOp == OUTDIRECT || lastSeenOp == F_OUTDIRECT
+                    || lastSeenOp == IN_N_OUT || lastSeenOp == APPDIRECT) {
                     error_and_quit("Invalid use of input redirect", lineNum);
                     return;
+                }
+
+                lastSeenOp = INDIRECT;
+
+                if (str[index+1] == '>') {
+                    index++;
+                    lastSeenOp = IN_N_OUT;
                 }
 
                 do {
@@ -292,7 +304,6 @@ validate(const char* str) {
 
                 /* inWordNow is left as true */
 
-                lastSeenOp = INDIRECT;
                 continue;
             }
             else if (str[index] == '>') {
@@ -301,9 +312,21 @@ validate(const char* str) {
                     return;
                 }
 
-                if (lastSeenOp == OUTDIRECT) {
+                if (lastSeenOp == OUTDIRECT || lastSeenOp == F_OUTDIRECT || lastSeenOp == F_OUTDIRECT
+                    || lastSeenOp == IN_N_OUT || lastSeenOp == APPDIRECT) {
                     error_and_quit("Output redirect cannot follow output redirect", lineNum);
                     return;
+                }
+
+                lastSeenOp = OUTDIRECT;
+
+                if (str[index+1] == '>') {
+                    index++;
+                    lastSeenOp = APPDIRECT;
+                } 
+                else if (str[index+1] == '|') {
+                    index++;
+                    lastSeenOp = F_OUTDIRECT;
                 }
 
                 do {
@@ -319,7 +342,6 @@ validate(const char* str) {
                     index++;
                 } while (is_valid_word_char(str[index]));
 
-                lastSeenOp = OUTDIRECT;
                 continue;                
 
                 /* inWordNow is left as true */
@@ -566,16 +588,29 @@ parse_complete_command(const char* str) {
             get_next_nonwhitespace_char(str, &index);
         } 
         else if (str[index] == '<') {
+            bool innout = false;
+            if (str[index+1] == '>') {
+                index++;
+                innout = true;
+            }
             get_next_nonwhitespace_char(str, &index);
             char *inputFileName = get_next_word(str, &index);
             command_t cmd = pop(cmdStack);
-            cmd->input = inputFileName;
+            cmd->input = (innout ? cmd->output = inputFileName : inputFileName);
             push(cmdStack, cmd);
         }
         else if (str[index] == '>') {
+            command_t cmd = pop(cmdStack);
+            if (str[index+1] == '>') {
+                index++;
+                cmd->outPerm = APPEND;
+            }
+            else if (str[index+1] == '|') {
+                index++;
+                cmd->outPerm = OVERWRITE;
+            }
             get_next_nonwhitespace_char(str, &index);
             char *outputFileName = get_next_word(str, &index);
-            command_t cmd = pop(cmdStack);
             cmd->output = outputFileName;
             push(cmdStack, cmd);
         }

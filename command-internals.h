@@ -13,6 +13,13 @@ enum command_type
     SUBSHELL_COMMAND,    // ( A )
 };
 
+enum output_permission
+{
+    WRITE,
+    OVERWRITE,
+    APPEND,
+};
+
 // Data associated with a command.
 struct command
 {
@@ -24,6 +31,8 @@ struct command
     // I/O redirections, or null if none.
     char *input;
     char *output;
+
+    enum output_permission outPerm;
 
     union
     {
