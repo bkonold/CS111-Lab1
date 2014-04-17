@@ -3,52 +3,121 @@
 #include "command.h"
 #include "command-internals.h"
 
-#include <error.h>
+//#include <error.h>
 //additional #include
 #include <unistd.h>
-#include <error.h>
+//#include <error.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <stdlib.h>
 
-void executingSimple(command_t c);
-void executingSubshell(command_t c);
-void executingAnd(command_t c);
-void executingOr(command_t c);
-void executingSequence(command_t c);
-void executingPipe(command_t c);
+int execute_switch(command_t);
 
-void execute_switch(command_t c)
+
+void
+setup_redirects(command_t c)
 {
-	switch(c->type)
+	// redirect file to stdin
+	if (c->input)
 	{
-	case SIMPLE_COMMAND:
-		executingSimple(c);
-		break;
-	case SUBSHELL_COMMAND:
-		executingSubshell(c);
-		break;
-	case AND_COMMAND:
-		executingAnd(c);
-		break;
-	case OR_COMMAND:
-		executingOr(c);
-		break;
-	case SEQUENCE_COMMAND:
-		executingSequence(c);
-		break;
-	case PIPE_COMMAND:
-		executingPipe(c);
-		break;
-	default:
-		error(1, 0, "Not a valid command");
+		int inputFile = open(c->input, O_RDONLY, 0444);
+		if (inputFile < 0)
+		{
+			printf("Failed to open input file. Exiting\n");
+			exit(1);
+		}
+		if (dup2(inputFile, 0) < 0)
+		{
+			printf("Failed to redirect file to STDIN. Exiting\n");
+			exit(1);
+		}
+		close(inputFile);
+	}
+	// redirect stdout to file
+	if (c->output)
+	{
+		int outputFile = open(c->output, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if (outputFile < 0)
+		{
+			printf("Failed to open output file. Exiting\n");
+			exit(1);
+		}
+		if (dup2(outputFile, 1) < 0)
+		{
+			printf("Failed to redirect STDOUT to file. Exiting\n");
+			exit(1);
+		}
+		close(outputFile);
 	}
 }
 
-void executingPipe(command_t c)
+void 
+execute_simple(command_t c)
+{
+	int status;
+	int p = fork();
+	if (p == 0)
+	{
+		setup_redirects(c);
+		execvp(c->u.word[0], c->u.word);
+		printf("execvp() failed. Exiting\n");
+		exit(1);
+	}
+
+	waitpid(p, &status, 0);
+	c->status = WEXITSTATUS(status);
+}
+
+void 
+execute_subshell(command_t c)
+{
+	int p = fork();
+	if (p == 0)
+	{
+		setup_redirects(c);
+		c->status = execute_switch(c->u.subshell_command);
+		exit(0);
+	}
+	int status;
+	waitpid(p, &status, 0);
+}
+
+void 
+execute_and(command_t c)
+{
+	int status = execute_switch(c->u.command[0]);
+
+	if (status == 0)
+		status = execute_switch(c->u.command[1]);
+	
+	c->status = status;
+}
+
+void 
+execute_or(command_t c)
+{
+	int status = execute_switch(c->u.command[0]);
+
+	if (status != 0)
+		status = execute_switch(c->u.command[1]);
+
+	c->status = status;
+}
+
+void 
+execute_sequence(command_t c)
+{
+	int status = execute_switch(c->u.command[0]);
+	status = execute_switch(c->u.command[1]);
+	c->status = status;
+}
+
+void 
+execute_pipe(command_t c)
 {
 	pid_t returnedPid;
 	pid_t firstPid;
@@ -56,15 +125,17 @@ void executingPipe(command_t c)
 	int buffer[2];
 	int eStatus;
 
-	if ( pipe(buffer) < 0 )
+	if (pipe(buffer) < 0)
 	{
-		error (1, errno, "pipe was not created");
+		// error (1, errno, "pipe was not created");
+		exit(1);
 	}
 
 	firstPid = fork();
 	if (firstPid < 0)
     {
-		error(1, errno, "fork was unsuccessful");
+		//error(1, errno, "fork was unsuccessful");
+		exit(1);
     }
 	else if (firstPid == 0) //child executes command on the right of the pipe
 	{
@@ -73,12 +144,13 @@ void executingPipe(command_t c)
         //redirect standard input to the read end of the pipe
         //so that input of the command (on the right of the pipe)
         //comes from the pipe
-		if ( dup2(buffer[0], 0) < 0 )
+		if (dup2(buffer[0], 0) < 0)
 		{
-			error(1, errno, "error with dup2");
+			//error(1, errno, "error with dup2");
+			exit(1);
 		}
 		execute_switch(c->u.command[1]);
-		_exit(c->u.command[1]->status);
+		exit(c->u.command[1]->status);
 	}
 	else 
 	{
@@ -87,17 +159,19 @@ void executingPipe(command_t c)
                             //have that child process executes command on the left of the pipe
 		if (secondPid < 0)
 		{
-			error(1, 0, "fork was unsuccessful");
+			//error(1, 0, "fork was unsuccessful");
+			exit(1);
 		}
         else if (secondPid == 0)
 		{
 			close(buffer[0]); //close unused read end
 			if(dup2(buffer[1], 1) < 0) //redirect standard output to write end of the pipe
             {
-				error (1, errno, "error with dup2");
+				// error (1, errno, "error with dup2");
+				exit(1);
             }
 			execute_switch(c->u.command[0]);
-			_exit(c->u.command[0]->status);
+			exit(c->u.command[0]->status);
 		}
 		else
 		{
@@ -111,7 +185,7 @@ void executingPipe(command_t c)
 			close(buffer[0]);
 			close(buffer[1]);
 
-			if (secondPid == returnedPid )
+			if (secondPid == returnedPid)
 			{
 			    //wait for the remaining child process to terminate
 				waitpid(firstPid, &eStatus, 0); 
@@ -130,6 +204,35 @@ void executingPipe(command_t c)
 	}	
 }
 
+int 
+execute_switch(command_t c)
+{
+	switch(c->type)
+	{
+	case SIMPLE_COMMAND:
+		execute_simple(c);
+		break;
+	case SUBSHELL_COMMAND:
+		execute_subshell(c);
+		break;
+	case AND_COMMAND:
+		execute_and(c);
+		break;
+	case OR_COMMAND:
+		execute_or(c);
+		break;
+	case SEQUENCE_COMMAND:
+		execute_sequence(c);
+		break;
+	case PIPE_COMMAND:
+		execute_pipe(c);
+		break;
+	default:
+		//error(1, 0, "Not a valid command");
+		exit(1);
+	}
+	return c->status;
+}
 
 int
 command_status (command_t c)
