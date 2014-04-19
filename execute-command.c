@@ -2,11 +2,7 @@
 
 #include "command.h"
 #include "command-internals.h"
-
-//#include <error.h>
-//additional #include
 #include <unistd.h>
-//#include <error.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -25,11 +21,9 @@ setup_redirects(command_t c)
 	if (c->input) {
 		int inputFile = open(c->input, O_RDONLY, 0444);
 		if (inputFile < 0) {
-			//printf("Failed to open input file. Exiting\n");
 			exit(1);
 		}
 		if (dup2(inputFile, 0) < 0) {
-			//printf("Failed to redirect file to STDIN. Exiting\n");
 			exit(1);
 		}
 		close(inputFile);
@@ -38,11 +32,9 @@ setup_redirects(command_t c)
 	if (c->output) {
 		int outputFile = open(c->output, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		if (outputFile < 0) {
-			//printf("Failed to open output file. Exiting\n");
 			exit(1);
 		}
 		if (dup2(outputFile, 1) < 0) {
-			//printf("Failed to redirect STDOUT to file. Exiting\n");
 			exit(1);
 		}
 		close(outputFile);
@@ -57,7 +49,6 @@ execute_simple(command_t c)
 	if (p == 0) {
 		setup_redirects(c);
 		int failure = execvp(c->u.word[0], c->u.word);
-		//printf("execvp() failed. Exiting\n");
 		exit(failure);
 	}
 
