@@ -3,7 +3,7 @@
 #include "command.h"
 #include "command-internals.h"
 #include <stdlib.h>
-#include <error.h>
+
 
 
 /* FIXME: You may need to add #include directives, macro definitions,
@@ -23,5 +23,5 @@ execute_command (command_t c, bool time_travel)
  	You can also use external functions defined in the GNU C Library.  */
     c = NULL;
     time_travel = false;
-  error (1, 0, "command execution not yet implemented");
+  //error (1, 0, "command execution not yet implemented");
 }
