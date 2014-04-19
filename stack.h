@@ -2,12 +2,12 @@
 #ifndef STACK_H
 #define STACK_H
 
-typedef struct command *command_t;
+/* stack holds void* so as to be more generic */
 
 struct node {
     struct node* next;
     struct node* prev;
-    command_t cmd;
+    void* item;
 };
 
 struct stack {
@@ -17,22 +17,26 @@ struct stack {
 
 typedef struct node* node_t;
 
-typedef struct stack* cmd_stk_t;
+typedef struct stack* stk_t;
 
-cmd_stk_t create_stack(void);
+stk_t create_stack(void);
 
-node_t create_node(command_t cmd, node_t next, node_t prev);
+stk_t create_list(void);
 
-command_t pop(cmd_stk_t stk);
+node_t create_node(void* cmd, node_t next, node_t prev);
 
-command_t peek(cmd_stk_t stk);
+void* pop(stk_t stk);
 
-command_t getFirst(cmd_stk_t stk);
+void* peek(stk_t stk);
 
-void push(cmd_stk_t stk, command_t cmd);
+void* getFirst(stk_t stk);
 
-void push_back(cmd_stk_t, command_t cmd);
+void push(stk_t stk, void* cmd);
 
-int empty(cmd_stk_t stk);
+void push_front(stk_t, void* cmd);
+
+void push_back(stk_t, void* cmd);
+
+int empty(stk_t stk);
 
 #endif
