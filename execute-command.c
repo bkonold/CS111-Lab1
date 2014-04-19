@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <string.h>
 
 int execute_switch(command_t);
 
@@ -57,9 +58,11 @@ execute_simple(command_t c)
 	int p = fork();
 	if (p == 0) {
 		setup_redirects(c);
-		int failure = execvp(c->u.word[0], c->u.word);
-		//printf("execvp() failed. Exiting\n");
-		exit(failure);
+		if (strcmp(c->u.word[0], "exec") == 0)
+			execvp(c->u.word[1], &c->u.word[1]);
+		else
+			execvp(c->u.word[0], c->u.word);
+		exit(1);
 	}
 
 	waitpid(p, &status, 0);
