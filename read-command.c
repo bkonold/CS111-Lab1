@@ -149,7 +149,7 @@ tokenize_complete_cmds(char* str) {
             }
         }
 
-        char** cmdArray = (char**) checked_malloc((cmdCount + 1) * sizeof(char*));
+        char** cmdArray = checked_malloc((cmdCount + 1) * sizeof(char*));
 
         // to find length later
         cmdArray[cmdCount] = NULL;
@@ -180,7 +180,7 @@ file_to_str(int (*get_next_byte) (void *),
     size_t size = ftell(get_next_byte_argument);
     fseek(get_next_byte_argument, 0L, SEEK_SET);
 
-    char* toReturn = (char*) checked_malloc(size+1);
+    char* toReturn = checked_malloc(size+1);
 
     int c = get_next_byte(get_next_byte_argument);
 
@@ -590,7 +590,7 @@ get_next_word(const char* str, int* index) {
     }
 
     //wordEndIndex now just past the word
-    char* word = (char*) checked_malloc((wordEndIndex - (*index)) + 1);
+    char* word = checked_malloc((wordEndIndex - (*index)) + 1);
 
     int i;
     for (i = *index; i < wordEndIndex; i++)
@@ -678,7 +678,7 @@ handle_close_paren(cmd_stk_t cmdStack, cmd_stk_t opStack) {
         topOperator = pop(opStack);
     }
 
-    command_t subshellCmd = (command_t) checked_malloc(sizeof(struct command));
+    command_t subshellCmd = checked_malloc(sizeof(struct command));
 
     subshellCmd->type = SUBSHELL_COMMAND;
     subshellCmd->input = subshellCmd->output = NULL;
@@ -792,7 +792,7 @@ parse_complete_command(const char* str) {
                 && !(isdigit(str[index]) && (str[index+1] == '<' || str[index+1] == '>') && str[index+2] == '&')) {
                 wordCount++;
                 // +1 to leave space for '\0' at end
-                words = (char**) checked_realloc(words, (wordCount+1)* sizeof(char*));
+                words = checked_realloc(words, (wordCount+1)* sizeof(char*));
 
                 char* word = get_next_word(str, &index);
 
@@ -800,7 +800,7 @@ parse_complete_command(const char* str) {
             }
             words[wordCount] = NULL;
 
-            command_t cmd = (command_t) checked_malloc(sizeof(struct command));
+            command_t cmd = checked_malloc(sizeof(struct command));
             cmd->type = SIMPLE_COMMAND;
             cmd->u.word = words;
             cmd->status = -1;
@@ -818,7 +818,7 @@ parse_complete_command(const char* str) {
             continue;
         } 
         else if (str[index] == '&') {
-            command_t op = (command_t) checked_malloc(sizeof(struct command));
+            command_t op = checked_malloc(sizeof(struct command));
             op->type = AND_COMMAND;
             op->status = -1;
             op->input = NULL;
@@ -833,7 +833,7 @@ parse_complete_command(const char* str) {
             continue;
         }
         else if (str[index] == '|') {
-            command_t op = (command_t) checked_malloc(sizeof(struct command));
+            command_t op = checked_malloc(sizeof(struct command));
             op->type = PIPE_COMMAND;
 
             if (str[index+1] == '|') {
@@ -853,7 +853,7 @@ parse_complete_command(const char* str) {
             continue;
         }
         else if (str[index] == ';' || str[index] == '\n') {
-            command_t op = (command_t) checked_malloc(sizeof(struct command));
+            command_t op = checked_malloc(sizeof(struct command));
             op->type = SEQUENCE_COMMAND;
             op->status = -1;
             op->input = NULL;
