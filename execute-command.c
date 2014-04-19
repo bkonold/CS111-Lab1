@@ -23,32 +23,26 @@ void
 setup_redirects(command_t c)
 {
 	// redirect file to stdin
-	if (c->input)
-	{
+	if (c->input) {
 		int inputFile = open(c->input, O_RDONLY, 0444);
-		if (inputFile < 0)
-		{
+		if (inputFile < 0) {
 			//printf("Failed to open input file. Exiting\n");
 			exit(1);
 		}
-		if (dup2(inputFile, 0) < 0)
-		{
+		if (dup2(inputFile, 0) < 0) {
 			//printf("Failed to redirect file to STDIN. Exiting\n");
 			exit(1);
 		}
 		close(inputFile);
 	}
 	// redirect stdout to file
-	if (c->output)
-	{
+	if (c->output) {
 		int outputFile = open(c->output, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		if (outputFile < 0)
-		{
+		if (outputFile < 0) {
 			//printf("Failed to open output file. Exiting\n");
 			exit(1);
 		}
-		if (dup2(outputFile, 1) < 0)
-		{
+		if (dup2(outputFile, 1) < 0) {
 			//printf("Failed to redirect STDOUT to file. Exiting\n");
 			exit(1);
 		}
@@ -61,12 +55,11 @@ execute_simple(command_t c)
 {
 	int status;
 	int p = fork();
-	if (p == 0)
-	{
+	if (p == 0) {
 		setup_redirects(c);
-		execvp(c->u.word[0], c->u.word);
+		int failure = execvp(c->u.word[0], c->u.word);
 		//printf("execvp() failed. Exiting\n");
-		exit(1);
+		exit(failure);
 	}
 
 	waitpid(p, &status, 0);
@@ -77,8 +70,7 @@ void
 execute_subshell(command_t c)
 {
 	int p = fork();
-	if (p == 0)
-	{
+	if (p == 0) {
 		setup_redirects(c);
 		c->status = execute_switch(c->u.subshell_command);
 		exit(0);
@@ -126,56 +118,47 @@ execute_pipe(command_t c)
 	int buffer[2];
 	int eStatus;
 
-	if (pipe(buffer) < 0)
-	{
+	if (pipe(buffer) < 0) {
 		// error (1, errno, "pipe was not created");
 		exit(1);
 	}
 
 	firstPid = fork();
-	if (firstPid < 0)
-    {
+	if (firstPid < 0) {
 		//error(1, errno, "fork was unsuccessful");
 		exit(1);
     }
-	else if (firstPid == 0) //child executes command on the right of the pipe
-	{
+	else if (firstPid == 0) {//child executes command on the right of the pipe
 		close(buffer[1]); //close unused write end
 
         //redirect standard input to the read end of the pipe
         //so that input of the command (on the right of the pipe)
         //comes from the pipe
-		if (dup2(buffer[0], 0) < 0)
-		{
+		if (dup2(buffer[0], 0) < 0) {
 			//error(1, errno, "error with dup2");
 			exit(1);
 		}
 		execute_switch(c->u.command[1]);
 		exit(c->u.command[1]->status);
 	}
-	else 
-	{
+	else  {
 		// Parent process
 		secondPid = fork(); //fork another child process
                             //have that child process executes command on the left of the pipe
-		if (secondPid < 0)
-		{
+		if (secondPid < 0) {
 			//error(1, 0, "fork was unsuccessful");
 			exit(1);
 		}
-        else if (secondPid == 0)
-		{
+        else if (secondPid == 0) {
 			close(buffer[0]); //close unused read end
-			if(dup2(buffer[1], 1) < 0) //redirect standard output to write end of the pipe
-            {
+			if(dup2(buffer[1], 1) < 0) {//redirect standard output to write end of the pipe 
 				// error (1, errno, "error with dup2");
 				exit(1);
             }
 			execute_switch(c->u.command[0]);
 			exit(c->u.command[0]->status);
 		}
-		else
-		{
+		else {
 			// Finishing processes
 			returnedPid = waitpid(-1, &eStatus, 0); //this is equivalent to wait(&eStatus);
                         //we now have 2 children. This waitpid will suspend the execution of
@@ -186,16 +169,14 @@ execute_pipe(command_t c)
 			close(buffer[0]);
 			close(buffer[1]);
 
-			if (secondPid == returnedPid)
-			{
+			if (secondPid == returnedPid) {
 			    //wait for the remaining child process to terminate
 				waitpid(firstPid, &eStatus, 0); 
 				c->status = WEXITSTATUS(eStatus);
 				return;
 			}
 			
-			if (firstPid == returnedPid)
-			{
+			if (firstPid == returnedPid) {
 			    //wait for the remaining child process to terminate
    				waitpid(secondPid, &eStatus, 0);
 				c->status = WEXITSTATUS(eStatus);
@@ -208,29 +189,29 @@ execute_pipe(command_t c)
 int 
 execute_switch(command_t c)
 {
-	switch(c->type)
-	{
-	case SIMPLE_COMMAND:
-		execute_simple(c);
-		break;
-	case SUBSHELL_COMMAND:
-		execute_subshell(c);
-		break;
-	case AND_COMMAND:
-		execute_and(c);
-		break;
-	case OR_COMMAND:
-		execute_or(c);
-		break;
-	case SEQUENCE_COMMAND:
-		execute_sequence(c);
-		break;
-	case PIPE_COMMAND:
-		execute_pipe(c);
-		break;
-	default:
-		//error(1, 0, "Not a valid command");
-		exit(1);
+	switch(c->type) {
+
+		case SIMPLE_COMMAND:
+			execute_simple(c);
+			break;
+		case SUBSHELL_COMMAND:
+			execute_subshell(c);
+			break;
+		case AND_COMMAND:
+			execute_and(c);
+			break;
+		case OR_COMMAND:
+			execute_or(c);
+			break;
+		case SEQUENCE_COMMAND:
+			execute_sequence(c);
+			break;
+		case PIPE_COMMAND:
+			execute_pipe(c);
+			break;
+		default:
+			//error(1, 0, "Not a valid command");
+			exit(1);
 	}
 	return c->status;
 }
@@ -244,10 +225,7 @@ command_status (command_t c)
 void
 execute_command (command_t c, bool time_travel)
 {
-  /* FIXME: Replace this with your implementation.  You may need to
- 	add auxiliary functions and otherwise modify the source code.
- 	You can also use external functions defined in the GNU C Library.  */
-    c = NULL;
-    time_travel = false;
-  //error (1, 0, "command execution not yet implemented");
+	if (time_travel == false) {
+	    execute_switch(c);
+	}
 }
