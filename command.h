@@ -5,7 +5,6 @@
 
 typedef struct command* command_t;
 typedef struct stack* cmd_stk_t;
-typedef struct stack* cmd_list_t;
 typedef cmd_stk_t command_stream_t;
 
 /* Create a command stream from GETBYTE and ARG.  A reader of
