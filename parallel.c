@@ -132,8 +132,8 @@ void execute_parallel(command_stream_t commandStream) {
 	}
 	while (true) {
 		int status;
-		pid_t sharedFinished = wait(&status);
-		if (sharedFinished == -1 && errno == ECHILD) {
+		pid_t done = wait(&status);
+		if (done == -1 && errno == ECHILD) {
 			break;
 		}
 	}
