@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int execute_switch(command_t);
+int execute_command(command_t);
 
 
 void
@@ -66,7 +66,7 @@ execute_subshell(command_t c)
 	int p = fork();
 	if (p == 0) {
 		setup_redirects(c);
-		c->status = execute_switch(c->u.subshell_command);
+		c->status = execute_command(c->u.subshell_command);
 		exit(0);
 	}
 	int status;
@@ -76,10 +76,10 @@ execute_subshell(command_t c)
 void 
 execute_and(command_t c)
 {
-	int status = execute_switch(c->u.command[0]);
+	int status = execute_command(c->u.command[0]);
 
 	if (status == 0)
-		status = execute_switch(c->u.command[1]);
+		status = execute_command(c->u.command[1]);
 	
 	c->status = status;
 }
@@ -87,10 +87,10 @@ execute_and(command_t c)
 void 
 execute_or(command_t c)
 {
-	int status = execute_switch(c->u.command[0]);
+	int status = execute_command(c->u.command[0]);
 
 	if (status != 0)
-		status = execute_switch(c->u.command[1]);
+		status = execute_command(c->u.command[1]);
 
 	c->status = status;
 }
@@ -98,8 +98,8 @@ execute_or(command_t c)
 void 
 execute_sequence(command_t c)
 {
-	int status = execute_switch(c->u.command[0]);
-	status = execute_switch(c->u.command[1]);
+	int status = execute_command(c->u.command[0]);
+	status = execute_command(c->u.command[1]);
 	c->status = status;
 }
 
@@ -132,7 +132,7 @@ execute_pipe(command_t c)
 			//error(1, errno, "error with dup2");
 			exit(1);
 		}
-		execute_switch(c->u.command[1]);
+		execute_command(c->u.command[1]);
 		exit(c->u.command[1]->status);
 	}
 	else  {
@@ -149,7 +149,7 @@ execute_pipe(command_t c)
 				// error (1, errno, "error with dup2");
 				exit(1);
             }
-			execute_switch(c->u.command[0]);
+			execute_command(c->u.command[0]);
 			exit(c->u.command[0]->status);
 		}
 		else {
@@ -180,8 +180,14 @@ execute_pipe(command_t c)
 	}	
 }
 
+int
+command_status (command_t c)
+{
+	return c->status;
+}
+
 int 
-execute_switch(command_t c)
+execute_command(command_t c)
 {
 	switch(c->type) {
 
@@ -208,18 +214,4 @@ execute_switch(command_t c)
 			exit(1);
 	}
 	return c->status;
-}
-
-int
-command_status (command_t c)
-{
-  return c->status;
-}
-
-void
-execute_command (command_t c, bool time_travel)
-{
-	if (time_travel == false) {
-	    execute_switch(c);
-	}
 }
