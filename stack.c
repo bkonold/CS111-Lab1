@@ -33,11 +33,6 @@ peek(stk_t stk) {
     return stk->head->item;
 }
 
-void* 
-getFirst(stk_t stk) {
-    return peek(stk);
-}
-
 void
 push(stk_t stk, void* item) {
     if (stk) {
@@ -66,6 +61,20 @@ push_back(stk_t stk, void* item) {
             stk->tail = newNode;
         }
     }
+}
+
+int
+size(stk_t stk) {
+    if (!empty(stk)) {
+        node_t currNode = stk->head;
+        int size = 0;
+        while (currNode) {
+            size++;
+            currNode = currNode->next;
+        }
+        return size;
+    }
+    return -1;
 }
 
 stk_t

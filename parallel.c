@@ -5,9 +5,11 @@
 #include "stack.h"
 #include <errno.h>
 #include <string.h>
-#include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
 #include <unistd.h>
-#include <stdio.h>
+
+static bool* sharedFinished;
 
 void
 build_io_lists(command_t cmd, string_list_t readList, string_list_t writeList) {
@@ -72,8 +74,8 @@ add_to_graph(graphnode_list_t adjList, command_t cmd, string_list_t readList, st
 	newNode->cmd = cmd;
 	newNode->readList = readList;
 	newNode->writeList = writeList;
+	newNode->aid = -1;
 	newNode->dependencies = create_list();
-	newNode->pid = -1;
 
 	node_t currNode = adjList->head;
 	while (currNode) {
@@ -103,23 +105,35 @@ void execute_parallel(command_stream_t commandStream) {
 		add_to_graph(adjList, cmd, readList, writeList);
 	}
 
+	int adjListSize = size(adjList);
+
+	sharedFinished = mmap(NULL, adjListSize * sizeof(bool), 
+				    PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+
+	int i;
+	for (i = 0; i < adjListSize; i++) {
+		sharedFinished[i] = false;
+	}
+
+	i = 0;
 	node_t currNode = adjList->head;
 	while (currNode) {
 		graphnode_t currGraphNode = currNode->item;
+		currGraphNode->aid = i;
 		pid_t p = fork();
 
 		if (p == 0) {
 			execute_node(currGraphNode);
 		}
 		else if (p > 0) {
-			currGraphNode->pid = p;
 			currNode = currNode->next;
 		}
+		i++;
 	}
 	while (true) {
 		int status;
-		pid_t finished = wait(&status);
-		if (finished == -1 && errno == ECHILD) {
+		pid_t sharedFinished = wait(&status);
+		if (sharedFinished == -1 && errno == ECHILD) {
 			break;
 		}
 	}
@@ -132,11 +146,12 @@ execute_node(graphnode_t node) {
 	while (currNode) {
 		graphnode_t currDependencyNode = currNode->item;
 
-		int status;
-		waitpid(currDependencyNode->pid, &status, 0);
-		
+		while(!sharedFinished[currDependencyNode->aid])
+			continue;
+
 		currNode = currNode->next;
 	}
 	execute_command(node->cmd);
+	sharedFinished[node->aid] = true;
 	exit(node->cmd->status);
 }
