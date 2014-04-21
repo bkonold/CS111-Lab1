@@ -29,7 +29,7 @@ void* pop(stk_t stk);
 
 void* peek(stk_t stk);
 
-void* getFirst(stk_t stk);
+int size(stk_t stk);
 
 void push(stk_t stk, void* item);
 
