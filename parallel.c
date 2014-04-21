@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <stdio.h>
 
@@ -118,7 +119,7 @@ void execute_parallel(command_stream_t commandStream) {
 	}
 	while (true) {
 		int status;
-		pid_t finished = wait(&status);
+		pid_t finished = waitpid(-1, &status, 0);
 		if (finished == -1 && errno == ECHILD) {
 			break;
 		}
