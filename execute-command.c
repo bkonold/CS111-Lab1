@@ -2,12 +2,7 @@
 
 #include "command.h"
 #include "command-internals.h"
-#include <stdlib.h>
-
-//#include <error.h>
-//additional #include
 #include <unistd.h>
-//#include <error.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -17,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int execute_switch(command_t);
+int execute_command(command_t);
 
 
 void
@@ -27,11 +22,9 @@ setup_redirects(command_t c)
 	if (c->input) {
 		int inputFile = open(c->input, O_RDONLY, 0444);
 		if (inputFile < 0) {
-			//printf("Failed to open input file. Exiting\n");
 			exit(1);
 		}
 		if (dup2(inputFile, 0) < 0) {
-			//printf("Failed to redirect file to STDIN. Exiting\n");
 			exit(1);
 		}
 		close(inputFile);
@@ -40,11 +33,9 @@ setup_redirects(command_t c)
 	if (c->output) {
 		int outputFile = open(c->output, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		if (outputFile < 0) {
-			//printf("Failed to open output file. Exiting\n");
 			exit(1);
 		}
 		if (dup2(outputFile, 1) < 0) {
-			//printf("Failed to redirect STDOUT to file. Exiting\n");
 			exit(1);
 		}
 		close(outputFile);
@@ -75,7 +66,7 @@ execute_subshell(command_t c)
 	int p = fork();
 	if (p == 0) {
 		setup_redirects(c);
-		c->status = execute_switch(c->u.subshell_command);
+		c->status = execute_command(c->u.subshell_command);
 		exit(0);
 	}
 	int status;
@@ -85,10 +76,10 @@ execute_subshell(command_t c)
 void 
 execute_and(command_t c)
 {
-	int status = execute_switch(c->u.command[0]);
+	int status = execute_command(c->u.command[0]);
 
 	if (status == 0)
-		status = execute_switch(c->u.command[1]);
+		status = execute_command(c->u.command[1]);
 	
 	c->status = status;
 }
@@ -96,10 +87,10 @@ execute_and(command_t c)
 void 
 execute_or(command_t c)
 {
-	int status = execute_switch(c->u.command[0]);
+	int status = execute_command(c->u.command[0]);
 
 	if (status != 0)
-		status = execute_switch(c->u.command[1]);
+		status = execute_command(c->u.command[1]);
 
 	c->status = status;
 }
@@ -107,8 +98,8 @@ execute_or(command_t c)
 void 
 execute_sequence(command_t c)
 {
-	int status = execute_switch(c->u.command[0]);
-	status = execute_switch(c->u.command[1]);
+	int status = execute_command(c->u.command[0]);
+	status = execute_command(c->u.command[1]);
 	c->status = status;
 }
 
@@ -141,7 +132,7 @@ execute_pipe(command_t c)
 			//error(1, errno, "error with dup2");
 			exit(1);
 		}
-		execute_switch(c->u.command[1]);
+		execute_command(c->u.command[1]);
 		exit(c->u.command[1]->status);
 	}
 	else  {
@@ -158,7 +149,7 @@ execute_pipe(command_t c)
 				// error (1, errno, "error with dup2");
 				exit(1);
             }
-			execute_switch(c->u.command[0]);
+			execute_command(c->u.command[0]);
 			exit(c->u.command[0]->status);
 		}
 		else {
@@ -189,8 +180,14 @@ execute_pipe(command_t c)
 	}	
 }
 
+int
+command_status (command_t c)
+{
+	return c->status;
+}
+
 int 
-execute_switch(command_t c)
+execute_command(command_t c)
 {
 	switch(c->type) {
 
@@ -217,18 +214,4 @@ execute_switch(command_t c)
 			exit(1);
 	}
 	return c->status;
-}
-
-int
-command_status (command_t c)
-{
-  return c->status;
-}
-
-void
-execute_command (command_t c, bool time_travel)
-{
-	if (time_travel == false) {
-	    execute_switch(c);
-	}
 }

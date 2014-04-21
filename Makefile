@@ -18,11 +18,12 @@ TIMETRASH_SOURCES = \
   main.c \
   read-command.c \
   print-command.c \
-  stack.c
+  stack.c \
+  parallel.c
 TIMETRASH_OBJECTS = $(subst .c,.o,$(TIMETRASH_SOURCES))
 
 DIST_SOURCES = \
-  $(TIMETRASH_SOURCES) alloc.h command.h command-internals.h stack.h Makefile \
+  $(TIMETRASH_SOURCES) alloc.h command.h command-internals.h stack.h parallel.h Makefile \
   $(TESTS) check-dist README
 
 timetrash: $(TIMETRASH_OBJECTS)
