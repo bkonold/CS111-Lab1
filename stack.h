@@ -23,7 +23,7 @@ stk_t create_stack(void);
 
 stk_t create_list(void);
 
-node_t create_node(void* cmd, node_t next, node_t prev);
+node_t create_node(void* item, node_t next, node_t prev);
 
 void* pop(stk_t stk);
 
@@ -31,11 +31,11 @@ void* peek(stk_t stk);
 
 void* getFirst(stk_t stk);
 
-void push(stk_t stk, void* cmd);
+void push(stk_t stk, void* item);
 
-void push_front(stk_t, void* cmd);
+void push_front(stk_t, void* item);
 
-void push_back(stk_t, void* cmd);
+void push_back(stk_t, void* item);
 
 int empty(stk_t stk);
 
