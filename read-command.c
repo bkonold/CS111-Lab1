@@ -72,13 +72,24 @@ replace_multiple_newlines(char* str) {
         int i;
         for (i = 0; i < length; i++) {
             // two consecutive newlines
-            if ((str[i] == '\n') && (i != length-1) && ((str[i+1] == '\n'))) {
+            if ((str[i] == '\n') && (i != length-1) && ((str[i+1] == '\n') || str[i+1] == '#')) {
                 str[i] = COMPLETE_CMD_DELIM_STR[0];
-                int j;
+                int j = i+1;
+                if (str[i+1] == '#') {
+                    for (j = i+1; str[j] && str[j] != '\n'; j++)
+                        str[j] = COMPLETE_CMD_DELIM_STR[0];
+                }
                 // replace 2nd newline, and trailing whitespace, with delim
-                for (j = i+1; str[j] == '\n' || str[j] == ' ' || str[j] == '\t'; j++) {
-
-                    str[j] = COMPLETE_CMD_DELIM_STR[0];
+                for (; str[j] == '\n' || str[j] == ' ' || str[j] == '\t' || str[j] == '#'; j++) {
+                    if (str[j] == '#') {
+                        do {
+                            str[j] = COMPLETE_CMD_DELIM_STR[0];
+                            j++;
+                        } while (str[j] && str[j] != '\n');
+                        j--;
+                    }
+                    else
+                        str[j] = COMPLETE_CMD_DELIM_STR[0];
                 }
                 i = j-1;
             }
@@ -694,7 +705,7 @@ parse_complete_command(const char* str) {
                 index++;
             } while (str[index] && str[index] != '\n');
             
-            get_next_nonwhitespace_char(str, &index);
+            //get_next_nonwhitespace_char(str, &index);
             continue;
         }
     }
