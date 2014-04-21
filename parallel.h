@@ -13,7 +13,6 @@ struct graphnode {
 	graphnode_list_t dependencies;
 	string_list_t readList;
 	string_list_t writeList;
-	bool done;
 	int aid;
 };
 

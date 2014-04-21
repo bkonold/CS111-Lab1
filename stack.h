@@ -13,7 +13,6 @@ struct node {
 struct stack {
     struct node* head;
     struct node* tail;
-    int size;
 };
 
 typedef struct node* node_t;

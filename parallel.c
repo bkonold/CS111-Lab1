@@ -4,16 +4,12 @@
 #include "parallel.h"
 #include "stack.h"
 #include <errno.h>
-#include <stdlib.h>
 #include <string.h>
-#include <signal.h>
-#include <stdio.h>
 #include <sys/mman.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
-static bool* finished;
+static bool* sharedFinished;
 
 void
 build_io_lists(command_t cmd, string_list_t readList, string_list_t writeList) {
@@ -111,12 +107,12 @@ void execute_parallel(command_stream_t commandStream) {
 
 	int adjListSize = size(adjList);
 
-	finished = mmap(NULL, adjListSize * sizeof(bool), 
+	sharedFinished = mmap(NULL, adjListSize * sizeof(bool), 
 				    PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
 
 	int i;
 	for (i = 0; i < adjListSize; i++) {
-		finished[i] = false;
+		sharedFinished[i] = false;
 	}
 
 	i = 0;
@@ -136,8 +132,8 @@ void execute_parallel(command_stream_t commandStream) {
 	}
 	while (true) {
 		int status;
-		pid_t finished = wait(&status);
-		if (finished == -1 && errno == ECHILD) {
+		pid_t sharedFinished = wait(&status);
+		if (sharedFinished == -1 && errno == ECHILD) {
 			break;
 		}
 	}
@@ -150,14 +146,12 @@ execute_node(graphnode_t node) {
 	while (currNode) {
 		graphnode_t currDependencyNode = currNode->item;
 
-		while(!finished[currDependencyNode->aid]) {
-		
+		while(!sharedFinished[currDependencyNode->aid])
 			continue;
-		}
 
 		currNode = currNode->next;
 	}
 	execute_command(node->cmd);
-	finished[node->aid] = true;
+	sharedFinished[node->aid] = true;
 	exit(node->cmd->status);
 }
