@@ -683,6 +683,8 @@ handle_close_paren(cmd_stk_t cmdStack, cmd_stk_t opStack) {
     subshellCmd->type = SUBSHELL_COMMAND;
     subshellCmd->input = subshellCmd->output = NULL;
     subshellCmd->u.subshell_command = pop(cmdStack);
+    subshellCmd->inputClones = NULL;
+    subshellCmd->outputClones = NULL;
 
     push(cmdStack, subshellCmd);
 }
@@ -729,6 +731,32 @@ parse_complete_command(const char* str) {
                 index++;
                 cmd->outPerm = OVERWRITE;
             }
+            else if (str[index+1] == '&') {
+                if (!cmd->outputClones)
+                    cmd->outputClones = create_list();
+                // if there is a digit on the left
+                if (isdigit(str[index-1]) && !is_valid_word_char(str[index-2])) {
+                    // create the fd pair
+                    fdpair_t pair = (fdpair_t) checked_malloc(sizeof(struct fdpair));
+                    pair->from = (int) (str[index-1] - '0');
+                    pair->to = (int) (str[index+2] - '0');
+                    if (cmd->type == SIMPLE_COMMAND) {
+                        int len = strlen(cmd->u.word);
+                        cmd->u.word[len-1] = NULL;
+                    } 
+                    push_back(cmd->outputClones, pair);
+                    push(cmdStack, cmd);
+                    index += 2;
+                    get_next_nonwhitespace_char(str, &index);
+                    continue;
+                } else {
+                    fdpair_t pair = (fdpair_t) checked_malloc(sizeof(struct fdpair));
+                    pair->to = 1;
+                    pair->from = 2;
+                    push_back(cmd->outputClones, pair);
+                    index++;
+                }
+            }
             get_next_nonwhitespace_char(str, &index);
             char *outputFileName = get_next_word(str, &index);
             cmd->output = outputFileName;
@@ -739,6 +767,11 @@ parse_complete_command(const char* str) {
 
             char** words = NULL;
             int wordCount = 0;
+
+            if (isdigit(str[index]) && (str[index+1] == '<' || str[index+1] == '>')) {
+                index++;
+                continue;
+            }
             
             while (is_valid_word_char(str[index])) {
                 wordCount++;
@@ -757,6 +790,8 @@ parse_complete_command(const char* str) {
             cmd->status = -1;
             cmd->input = NULL;
             cmd->output = NULL;
+            cmd->inputClones = NULL;
+            cmd->outputClones = NULL;
 
             push(cmdStack, cmd);
             continue;
@@ -772,6 +807,8 @@ parse_complete_command(const char* str) {
             op->status = -1;
             op->input = NULL;
             op->output = NULL;
+            op->inputClones = NULL;
+            op->outputClones = NULL;
 
             push_new_operator(op, cmdStack, opStack);
 
@@ -791,6 +828,8 @@ parse_complete_command(const char* str) {
             op->status = -1;
             op->input = NULL;
             op->output = NULL;
+            op->inputClones = NULL;
+            op->outputClones = NULL;
 
             push_new_operator(op, cmdStack, opStack);
 
@@ -803,6 +842,8 @@ parse_complete_command(const char* str) {
             op->status = -1;
             op->input = NULL;
             op->output = NULL;
+            op->inputClones = NULL;
+            op->outputClones = NULL;
 
             push_new_operator(op, cmdStack, opStack);
 
