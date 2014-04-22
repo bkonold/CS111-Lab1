@@ -710,13 +710,31 @@ parse_complete_command(const char* str) {
         } 
         else if (str[index] == '<') {
             bool innout = false;
+            command_t cmd = pop(cmdStack);
             if (str[index+1] == '>') {
                 index++;
                 innout = true;
             }
+            else if (str[index+1] == '&') {
+                if (!cmd->inputClones)
+                    cmd->inputClones = create_list();
+
+                fdpair_t pair = checked_malloc(sizeof(struct fdpair));
+                pair->from = 0;
+                // if there is a digit on the left
+                if (isdigit(str[index-1]) && !is_valid_word_char(str[index-2]))
+                    pair->from = (int) (str[index-1] - '0');
+                
+                pair->to = (int) (str[index+2] - '0');
+
+                push_back(cmd->inputClones, pair);
+                push(cmdStack, cmd);
+                index += 2;
+                get_next_nonwhitespace_char(str, &index);
+                continue;
+            }
             get_next_nonwhitespace_char(str, &index);
             char *inputFileName = get_next_word(str, &index);
-            command_t cmd = pop(cmdStack);
             cmd->input = (innout ? cmd->output = inputFileName : inputFileName);
             push(cmdStack, cmd);
         }
@@ -740,10 +758,7 @@ parse_complete_command(const char* str) {
                     fdpair_t pair = (fdpair_t) checked_malloc(sizeof(struct fdpair));
                     pair->from = (int) (str[index-1] - '0');
                     pair->to = (int) (str[index+2] - '0');
-                    if (cmd->type == SIMPLE_COMMAND) {
-                        int len = strlen(cmd->u.word);
-                        cmd->u.word[len-1] = NULL;
-                    } 
+
                     push_back(cmd->outputClones, pair);
                     push(cmdStack, cmd);
                     index += 2;
@@ -765,15 +780,16 @@ parse_complete_command(const char* str) {
         // simple command
         else if (is_valid_word_char(str[index])) {
 
-            char** words = NULL;
-            int wordCount = 0;
-
             if (isdigit(str[index]) && (str[index+1] == '<' || str[index+1] == '>')) {
                 index++;
                 continue;
             }
+
+            char** words = NULL;
+            int wordCount = 0;
             
-            while (is_valid_word_char(str[index])) {
+            while (is_valid_word_char(str[index]) 
+                && !(isdigit(str[index]) && (str[index+1] == '<' || str[index+1] == '>') && str[index+2] == '&')) {
                 wordCount++;
                 // +1 to leave space for '\0' at end
                 words = (char**) checked_realloc(words, (wordCount+1)* sizeof(char*));
