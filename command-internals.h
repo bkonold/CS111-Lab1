@@ -1,6 +1,8 @@
 #ifndef COMMAND_INTERNALS_H
 #define COMMAND_INTERNALS_H
 
+#include "stack.h"
+
 // UCLA CS 111 Lab 1 command internals
 
 enum command_type
@@ -20,6 +22,15 @@ enum output_permission
     APPEND,
 };
 
+struct fdpair {
+    int from;
+    int to;
+};
+
+typedef struct fdpair* fdpair_t;
+
+typedef struct stack* fdpair_list_t;
+
 // Data associated with a command.
 struct command
 {
@@ -33,6 +44,9 @@ struct command
     char *output;
 
     enum output_permission outPerm;
+
+    fdpair_list_t outputClones;
+    fdpair_list_t inputClones;
 
     union
     {

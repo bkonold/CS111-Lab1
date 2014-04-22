@@ -23,6 +23,9 @@ enum operator_type {
     IN_N_OUT,
     APPDIRECT,
     CLOSE_PAREN,
+    OUTPUT_CLONE,
+    EMPTY_OUTPUT_CLONE,
+    INPUT_CLONE,
     NONE,
 };
 
@@ -212,6 +215,12 @@ is_valid_word_char(int c) {
     return false;
 }
 
+int get_prev_nonwhitespace_char(const char* str, int index);
+
+bool
+is_white(char c) {
+    return c == ' ' || c == '\t';
+}
 
 /**
 * validate the input for valid POSIX shell syntax. fail if not
@@ -233,16 +242,26 @@ validate(const char* str) {
         }
 
         bool inWordNow = false;
+        bool outputSeen = false;
+        bool inputSeen = false;
         enum operator_type lastSeenOp = NONE;
         
         while (str[index]) {
             if (is_valid_word_char(str[index])) {
-                if (lastSeenOp == INDIRECT || lastSeenOp == OUTDIRECT || lastSeenOp == F_OUTDIRECT
-                    || lastSeenOp == IN_N_OUT || lastSeenOp == APPDIRECT) {
+
+                if (isdigit(str[index]) && (str[index+1] == '<' || str[index+1] == '>')) {
+                    index++;
+                    continue;
+                }
+
+                if (inputSeen || outputSeen) {
                     error_and_quit("Too many arguments to I/O redirect", lineNum);
                     return;
                 } else if (lastSeenOp == CLOSE_PAREN) {
                     error_and_quit("Too few operators", lineNum);
+                    return;
+                } else if (lastSeenOp == OUTPUT_CLONE || lastSeenOp == INPUT_CLONE) {
+                    error_and_quit("Incorrectly positioned clone", lineNum);
                     return;
                 }
 
@@ -262,6 +281,8 @@ validate(const char* str) {
                 lastSeenOp = AND;
                 index++;
                 inWordNow = false;
+                outputSeen = false;
+                inputSeen = false;
             }
             else if (str[index] == '|') {
                 if (!inWordNow) {
@@ -280,6 +301,8 @@ validate(const char* str) {
                 }
 
                 inWordNow = false;
+                outputSeen = false;
+                inputSeen = false;
             }
             else if (str[index] == '<') {
                 if (!inWordNow) {
@@ -287,17 +310,37 @@ validate(const char* str) {
                     return;
                 }
 
-                if (lastSeenOp == INDIRECT || lastSeenOp == OUTDIRECT || lastSeenOp == F_OUTDIRECT
-                    || lastSeenOp == IN_N_OUT || lastSeenOp == APPDIRECT) {
-                    error_and_quit("Invalid use of input redirect", lineNum);
-                    return;
+                if (inputSeen || outputSeen) {
+                    if (str[index+1] != '&') {
+                        error_and_quit("Invalid use of input redirect", lineNum);
+                        return;
+                    }
                 }
+
+                bool prevInputSeen = inputSeen;
+                inputSeen = true;
 
                 lastSeenOp = INDIRECT;
 
                 if (str[index+1] == '>') {
                     index++;
                     lastSeenOp = IN_N_OUT;
+                    outputSeen = true;
+                }
+                else if (str[index+1] == '&') {
+                    // not actually an input so set inputSeen back to what it was
+                    inputSeen = prevInputSeen;
+
+                    // incomplete input clone
+                    if (!str[index+1] || !str[index+2])
+                        error_and_quit("Incomplete command", lineNum);
+
+                    // if no digit on the right, fail
+                    if (!(isdigit(str[index+2]) && (!str[index+3] || !is_valid_word_char(str[index+3]))))
+                        error_and_quit("Improper use of <&", lineNum);
+
+                    lastSeenOp = INPUT_CLONE;
+                    index++;
                 }
 
                 do {
@@ -323,13 +366,20 @@ validate(const char* str) {
                     return;
                 }
 
-                if (lastSeenOp == OUTDIRECT || lastSeenOp == F_OUTDIRECT || lastSeenOp == F_OUTDIRECT
-                    || lastSeenOp == IN_N_OUT || lastSeenOp == APPDIRECT) {
-                    error_and_quit("Output redirect cannot follow output redirect", lineNum);
-                    return;
+                if (str[index+1] == '&' && !str[index+2])
+                    error_and_quit("we're done", lineNum);
+
+                if (outputSeen) {
+                    if (!(isdigit(str[index-1]) && !is_valid_word_char(str[index-2]))
+                        && !(isdigit(str[index+2]) && (!str[index+3] || !is_valid_word_char(str[index+3])))) {
+                        error_and_quit("Output redirect cannot follow output redirect", lineNum);
+                        return;
+                    }
                 }
 
                 lastSeenOp = OUTDIRECT;
+                bool prevOutputSeen = outputSeen;
+                outputSeen = true;
 
                 if (str[index+1] == '>') {
                     index++;
@@ -338,7 +388,37 @@ validate(const char* str) {
                 else if (str[index+1] == '|') {
                     index++;
                     lastSeenOp = F_OUTDIRECT;
-                }
+                } 
+                // found a fat output clone
+                else if (str[index+1] == '&') {
+                    // ">&" will never happen at this point. handled at the beginning.                 
+
+                    // incomplete output clone
+                    if (!str[index+2])
+                        error_and_quit("Incomplete command", lineNum);
+
+                    lastSeenOp = OUTPUT_CLONE;
+
+                    // found no digit on the left
+                    if (!(isdigit(str[index-1]) && !is_valid_word_char(str[index-2]))) {
+
+                        // if there is a digit on right, fail
+                        if (isdigit(str[index+2]) && (!str[index+3] || !is_valid_word_char(str[index+3])))
+                            error_and_quit("Improper use of >&", lineNum);
+
+                        lastSeenOp = EMPTY_OUTPUT_CLONE;
+                    }
+                    // found single digit on left
+                    else if (isdigit(str[index-1]) && !is_valid_word_char(str[index-2])) {
+
+                        // if no digit on the right, fail
+                        if (!(isdigit(str[index+2]) && (!str[index+3] || !is_valid_word_char(str[index+3]))))
+                            error_and_quit("Improper use of >&", lineNum);
+
+                        outputSeen = prevOutputSeen;
+                    }
+                    index++;
+                } 
 
                 do {
                     index++;
@@ -366,6 +446,8 @@ validate(const char* str) {
 
                 lastSeenOp = SEQUENCE;                
                 inWordNow = false;
+                outputSeen = false;
+                inputSeen = false;
             }
             else if (str[index] == '(') {
                 if (inWordNow) {
@@ -376,6 +458,8 @@ validate(const char* str) {
                 unmatchedParenCount++;
 
                 inWordNow = false;
+                outputSeen = false;
+                inputSeen = false;
 
             }
             else if (str[index] == ')') {
@@ -393,6 +477,8 @@ validate(const char* str) {
 
                 lastSeenOp = CLOSE_PAREN;
                 /* inWordNow is left as true */
+                inputSeen = false;
+                outputSeen = false;
                 
             }
             else if (str[index] == '\t' || str[index] == ' ') {
@@ -423,6 +509,8 @@ validate(const char* str) {
                         error_and_quit("Script starts with invalid char", lineNum);
                     }
                     inWordNow = false;
+                    inputSeen = false;
+                    outputSeen = false;
                     lastSeenOp = NONE;
                     continue;
                 }
@@ -461,10 +549,31 @@ int
 get_next_nonwhitespace_char(const char* str, int* index) {
     int c;
 
+    if (*index >= 0 && str[*index] == '\0')
+        return str[*index];
+
     do {
         (*index)++;
         c = str[(*index)];
     } while (c == ' ' || c == '\t');
+
+    return c;
+}
+
+/**
+* starting from *index, return previous non-whitespace character
+*/
+int
+get_prev_nonwhitespace_char(const char* str, int index) {
+    int c;
+
+    if (index == 0)
+        return str[index];
+
+    do {
+        index--;
+        c = str[index];
+    } while ((c == ' ' || c == '\t') && index > 0);
 
     return c;
 }
@@ -584,7 +693,6 @@ handle_close_paren(cmd_stk_t cmdStack, cmd_stk_t opStack) {
 command_t
 parse_complete_command(const char* str) {
     int index = -1;
-
     cmd_stk_t cmdStack = create_stack();
     cmd_stk_t opStack = create_stack();
 
@@ -592,7 +700,7 @@ parse_complete_command(const char* str) {
 
     while(str[index]) {
 
-        //printf("%c\t%d\n", str[index], index);
+        // printf("%c\t%d\n", str[index], index);
 
         if (str[index] == '(') {
             push(opStack, OPEN_PAREN_COMMAND);
@@ -612,6 +720,7 @@ parse_complete_command(const char* str) {
         }
         else if (str[index] == '>') {
             command_t cmd = pop(cmdStack);
+            cmd->outPerm = WRITE;
             if (str[index+1] == '>') {
                 index++;
                 cmd->outPerm = APPEND;
