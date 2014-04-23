@@ -54,24 +54,20 @@ command_indented_print (int indent, command_t c)
         printf (">%s", c->output);
 
     if (c->inputClones) {
-        printf(" [ fd_in_clones: ");
         node_t curr = c->inputClones->head;
         while (curr) {
             fdpair_t pair = curr->item;
-            printf("%d<&%d ", pair->from, pair->to);
+            printf(" %d<&%d ", pair->from, pair->to);
             curr = curr->next;
         }
-        printf("]");
     }
     if (c->outputClones) {
-        printf(" [ fd_out_clones: ");
         node_t curr = c->outputClones->head;
         while (curr) {
             fdpair_t pair = curr->item;
-            printf("%d>&%d ", pair->from, pair->to);
+            printf(" %d>&%d ", pair->from, pair->to);
             curr = curr->next;
         }
-        printf("]");
     }
 }
 
