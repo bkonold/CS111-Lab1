@@ -685,6 +685,7 @@ handle_close_paren(cmd_stk_t cmdStack, cmd_stk_t opStack) {
     subshellCmd->u.subshell_command = pop(cmdStack);
     subshellCmd->inputClones = NULL;
     subshellCmd->outputClones = NULL;
+    subshellCmd->outPerm = EMPTY;
 
     push(cmdStack, subshellCmd);
 }
@@ -808,6 +809,7 @@ parse_complete_command(const char* str) {
             cmd->output = NULL;
             cmd->inputClones = NULL;
             cmd->outputClones = NULL;
+            cmd->outPerm = EMPTY;
 
             push(cmdStack, cmd);
             continue;
@@ -825,6 +827,7 @@ parse_complete_command(const char* str) {
             op->output = NULL;
             op->inputClones = NULL;
             op->outputClones = NULL;
+            op->outPerm = EMPTY;
 
             push_new_operator(op, cmdStack, opStack);
 
@@ -846,6 +849,7 @@ parse_complete_command(const char* str) {
             op->output = NULL;
             op->inputClones = NULL;
             op->outputClones = NULL;
+            op->outPerm = EMPTY;
 
             push_new_operator(op, cmdStack, opStack);
 
@@ -860,6 +864,7 @@ parse_complete_command(const char* str) {
             op->output = NULL;
             op->inputClones = NULL;
             op->outputClones = NULL;
+            op->outPerm = EMPTY;
 
             push_new_operator(op, cmdStack, opStack);
 
