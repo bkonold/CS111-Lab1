@@ -20,6 +20,7 @@ enum output_permission
     WRITE,
     OVERWRITE,
     APPEND,
+    EMPTY,
 };
 
 struct fdpair {
