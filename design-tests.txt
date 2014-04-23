@@ -1,0 +1,66 @@
+cat &> c # invalid
+
+cat >& c >& c #invalid
+
+cat >& c > d # invalid
+
+cat > c >& d  # invalid
+
+cat >& c < d # invalid
+
+cat 2>&1 > e 2>&1 < d # invalid
+
+cat 2>&1 > e 2>&1 > d # invalid for this case and the one above, why can't we just make 2 bools: inputencountered and outputencountered. 
+if we encounter one of them set the bool to true. then if we encounter them again just check the bool. 
+when to reset?
+
+everytime we reset iswordnow i think right? 
+
+sounds about right...
+
+cat 2>&1 c # so what you're sayin is that we should make this invalid. yea. then we need to keep track of lastseenop. no? so then here, we can continue to keep track of last seen op. like we can put 2>&1 into lastseenop. no need to ignore.
+# the reason we wanted to ignore is coz of this case: cat 2>&1 > e 2>&1 > d. but that's been solved by using 2 bools. if we don't ignore then we can just make sure that there is no isvalidwordchar right after a outputclone.  wait what
+
+#^ to handle the above case.. which is invalid right? 
+
+i dont think we need to make any special check, cant we just reset inwordnow or some shit
+
+or would that be fucked
+
+i think it might be fucked
+
+lemme think
+
+when we see a simple command word
+
+we loop and get all the words
+
+ourp arsing is FUCKED
+
+exactly why im saying cat 2>&1 c is invalid. or at least should be. fuck yeah
+
+aite so to handle that case, we can just make sure that there is no isvalidwordchar after an outputclone (2>&1)
+
+get_next_nonwhitespace_char(str, index) != isvalidwordchar?fucking huge ye
+
+aite code all of the above and ill watch
+
+fui
+do  
+mikde you
+
+
+dont delete any of this. 
+
+
+this makes so many of our if statements less fat. yea. 
+
+aite im gonna code it
+
+
+holy ass. 
+
+cat 2>&1 < e > d # valid 
+
+cat 2>&1 > d # valid 
+
