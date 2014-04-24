@@ -115,17 +115,27 @@ void execute_parallel(command_stream_t commandStream) {
 		sharedFinished[i] = false;
 	}
 
+
+    unsigned int numStartedProcesses = 0;
+
 	i = 0;
 	node_t currNode = adjList->head;
 	while (currNode) {
 		graphnode_t currGraphNode = currNode->item;
 		currGraphNode->aid = i;
+
+        if (numStartedProcesses >= MAX_PROCS) {
+            // wait for a spot to open up
+            wait(NULL);
+        }
+
 		pid_t p = fork();
 
 		if (p == 0) {
 			execute_node(currGraphNode);
 		}
 		else if (p > 0) {
+            numStartedProcesses++;
 			currNode = currNode->next;
 		}
 		i++;
