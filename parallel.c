@@ -12,7 +12,6 @@
 #define MAX_PROCS 30
 
 static bool* sharedFinished;
-static int* numFreeProcesses;
 
 void
 build_io_lists(command_t cmd, string_list_t readList, string_list_t writeList) {
@@ -113,14 +112,13 @@ void execute_parallel(command_stream_t commandStream) {
 	sharedFinished = mmap(NULL, adjListSize * sizeof(bool), 
 				    PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
 
-	numFreeProcesses = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
-
-	*numFreeProcesses = MAX_PROCS;
-
 	int i;
 	for (i = 0; i < adjListSize; i++) {
 		sharedFinished[i] = false;
 	}
+
+
+    unsigned int numStartedProcesses = 0;
 
 	i = 0;
 	node_t currNode = adjList->head;
@@ -128,16 +126,18 @@ void execute_parallel(command_stream_t commandStream) {
 		graphnode_t currGraphNode = currNode->item;
 		currGraphNode->aid = i;
 
-		while (*numFreeProcesses < 1)
-			continue;
+        if (numStartedProcesses >= MAX_PROCS) {
+            // wait for a spot to open up
+            wait(NULL);
+        }
 
 		pid_t p = fork();
 
 		if (p == 0) {
-			(*numFreeProcesses)--;
 			execute_node(currGraphNode);
 		}
 		else if (p > 0) {
+            numStartedProcesses++;
 			currNode = currNode->next;
 		}
 		i++;
@@ -165,6 +165,5 @@ execute_node(graphnode_t node) {
 	}
 	execute_command(node->cmd);
 	sharedFinished[node->aid] = true;
-	(*numFreeProcesses)++;
 	exit(node->cmd->status);
 }
