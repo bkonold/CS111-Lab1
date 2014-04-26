@@ -1,15 +1,15 @@
 // UCLA CS 111 Lab 1 storage allocation
 
 #include "alloc.h"
-
-
+#include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
 
 static void
 memory_exhausted (int errnum)
 {
-  //error (1, errnum, "memory exhausted");
+  printf("%d: memory exhausted", errnum);
+  exit(1);
 }
 
 static void *
