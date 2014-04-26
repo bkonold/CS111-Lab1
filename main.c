@@ -47,7 +47,8 @@ void freeTree(struct command* t)
 static void
 usage (void)
 {
-//error (1, 0, "usage: %s [-pt] SCRIPT-FILE", program_name);
+    printf("usage: %s [-pt] SCRIPT-FILE", program_name)
+    exit(1);
 }
 
 static int
@@ -79,8 +80,10 @@ main (int argc, char **argv)
 
     script_name = argv[optind];
     FILE *script_stream = fopen (script_name, "r");
-    //if (! script_stream)
-    //error (1, errno, "%s: cannot open", script_name);
+    if (! script_stream) {
+        printf("%s: cannot open", script_name);
+        exit(1);
+    }
     command_stream_t command_stream =
     make_command_stream (get_next_byte, script_stream);
 
