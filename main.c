@@ -14,7 +14,7 @@ static char const *script_name;
 static void
 usage (void)
 {
-    printf("usage: %s [-pt] SCRIPT-FILE", program_name)
+    printf("usage: %s [-pt] SCRIPT-FILE", program_name);
     exit(1);
 }
 
