@@ -1,7 +1,7 @@
 // UCLA CS 111 Lab 1 main program
 
 #include <errno.h>
-#include <stdlib.h>
+
 #include <getopt.h>
 #include <stdio.h>
 
@@ -10,39 +10,6 @@
 
 static char const *program_name;
 static char const *script_name;
-
-void freeTree(struct command* t)  
-{
-    if (t == NULL)
-       return;
-    if(t->type == SIMPLE_COMMAND)
-    {
-        if(t->input != NULL){
-            free(t->input);
-        }
-        if(t->output != NULL){
-            free(t->output);
-        }
-        if(t->u.word != NULL) {
-            int i;
-            for(i = 0; t->u.word[i] != NULL; i++){
-                free(t->u.word[i]);
-            }
-            free(t->u.word);
-        }
-        free(t);   
-       
-        return;
-    }
-    if(t->type == SUBSHELL_COMMAND){
-      freeTree(t->u.subshell_command);
-    }
-    else{
-      freeTree(t->u.command[0]);
-      freeTree(t->u.command[1]);
-    }
-    free(t);
-}
 
 static void
 usage (void)
@@ -89,11 +56,8 @@ main (int argc, char **argv)
 
     command_t last_command = NULL;
     command_t command;
-    int lastCommandStatus = 0;
-    bool atLeastOne = false;
     if (!time_travel)
         while ((command = read_command_stream (command_stream))) {
-            atLeastOne = true;
             if (print_tree) {
                 printf ("# %d\n", command_number++);
                 print_command (command);
@@ -101,12 +65,10 @@ main (int argc, char **argv)
             else if (!time_travel) {
                 last_command = command;
                 execute_command (command);
-                lastCommandStatus = command_status(command);
             }
-            freeTree(command);
         }
     else
         execute_parallel(command_stream);
 
-    return print_tree || !atLeastOne ? 0 : command_status (last_command);
+    return print_tree || !last_command ? 0 : command_status (last_command);
 }
